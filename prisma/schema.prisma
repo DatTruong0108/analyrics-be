@@ -20,6 +20,7 @@ model User {
   email     String   @unique
   password  String
   name      String?
+  role      Role     @default(USER)
   favorites Favorite[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -62,4 +63,9 @@ model Favorite {
   song    Song   @relation(fields: [songId], references: [id])
 
   @@unique([userId, songId])
+}
+
+enum Role {
+  USER
+  ADMIN
 }

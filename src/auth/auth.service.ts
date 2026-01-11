@@ -51,4 +51,14 @@ export class AuthService {
       return Err('Đăng nhập thất bại. Hệ thống bị lỗi, vui lòng thử lại sau.');
     }
   }
+
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async logout(): Promise<Result<boolean, string>> {
+    try {
+      // Sau này có thể thêm logic xóa Refresh Token trong DB tại đây (nếu có)
+      return Ok(true);
+    } catch (error) {
+      return Err('Hệ thống bị lỗi vui lòng thử lại sau.');
+    }
+  }
 }

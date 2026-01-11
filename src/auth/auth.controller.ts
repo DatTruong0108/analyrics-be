@@ -8,11 +8,12 @@ import { Result, match } from 'oxide.ts';
 import { AuthService } from './auth.service';
 import { UserResponse, LoginDto, RegisterDto, UserData } from './auth.dto';
 import { IUser, ILoginResult } from './interfaces/auth.interface';
+import { BaseResponse } from 'src/shared/constants/baseResponse';
 
 @Controller('/api/auth')
 @ApiTags('Auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   private mapToUserData(user: IUser): UserData {
     return {
@@ -57,17 +58,17 @@ export class AuthController {
           statusCode: HttpStatus.OK,
           message: 'Đăng nhập thành công',
           // Lúc này user đã có kiểu IUser, không còn là 'any'
-          data: this.mapToUserData(user), 
+          data: this.mapToUserData(user),
         };
-        
+
         res.status(HttpStatus.OK).json(response);
       },
-      
+
       // 4. Khai báo kiểu string cho err để xóa lỗi "Unsafe assignment"
       Err: (err: string) => {
         const isSystem = err.includes('Hệ thống');
         const status = isSystem ? HttpStatus.INTERNAL_SERVER_ERROR : HttpStatus.BAD_REQUEST;
-        
+
         res.status(status).json({
           statusCode: status,
           message: err,
@@ -92,19 +93,49 @@ export class AuthController {
           message: 'Đăng ký tài khoản thành công',
           data: this.mapToUserData(user),
         };
-        
+
         res.status(HttpStatus.CREATED).json(response);
       },
-      
+
       Err: (err: string) => {
         const isSystem = err.includes('Hệ thống');
         const status = isSystem ? HttpStatus.INTERNAL_SERVER_ERROR : HttpStatus.BAD_REQUEST;
-        
+
         res.status(status).json({
           statusCode: status,
           message: err,
         });
       },
     });
+  }
+
+  @Post('logout')
+  async logout(@Res() res: Response): Promise<void> {
+    const result: Result<boolean, string> = await this.authService.logout();
+
+    return match(result, {
+      Ok: () => {
+        res.clearCookie('access_token', {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/',
+        });
+
+        const response: BaseResponse = {
+          statusCode: HttpStatus.OK,
+          message: 'Đăng xuất thành công',
+        };
+
+        res.status(HttpStatus.OK).json(response);
+      },
+
+      Err: (err: string) => {
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          message: err,
+        });
+      }
+    })
   }
 }

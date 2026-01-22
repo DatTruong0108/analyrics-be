@@ -74,4 +74,33 @@ export class AnalysisController {
       },
     });
   }
+
+  @Get('trending')
+  @ApiOperation({ summary: 'Lấy danh sách các bài hát được phân tích nhiều (Trending)' })
+  @ApiQuery({ name: 'limit', required: false, example: 10 })
+  @ApiQuery({ name: 'offset', required: false, example: 0 })
+  async getTrending(
+    @Query('limit') limit: string = '10',
+    @Query('offset') offset: string = '0',
+    @Res() res: Response,
+  ): Promise<void> {
+    const result = await this.analysisService.getTrending(+limit, +offset);
+
+    return match(result, {
+      Ok: (data) => {
+        res.status(HttpStatus.OK).json({
+          statusCode: HttpStatus.OK,
+          message: 'Lấy danh sách trending thành công',
+          data: data.items,
+          hasMore: data.hasMore,
+        });
+      },
+      Err: (err) => {
+        res.status(HttpStatus.BAD_REQUEST).json({
+          statusCode: HttpStatus.BAD_REQUEST,
+          message: err,
+        });
+      },
+    });
+  }
 }

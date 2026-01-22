@@ -64,4 +64,16 @@ export class AnalysisService {
       return Err('Quá trình phân tích gặp sự cố. Hệ thống bị lỗi vui lòng thử lại sau.');
     }
   }
+
+  async getTrending(limit: number = 10, offset: number = 0): Promise<Result<{ items: ISongMetadata[]; hasMore: boolean }, string>> {
+    const result = await this.repository.findTrendings(limit, offset);
+
+    if (result.isErr()) return Err(result.unwrapErr());
+
+    const { items, total } = result.unwrap();
+
+    const hasMore = offset + limit < total;
+
+    return Ok({ items, hasMore });
+  }
 }

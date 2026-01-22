@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* System Package */
 import { Injectable } from "@nestjs/common";
 import { Result, Ok, Err } from "oxide.ts";
@@ -5,7 +6,7 @@ import { Prisma } from "@prisma/client";
 
 /* Application Package */
 import { IAnalysisRepository } from "./analysis.repository";
-import { IAnalysisResult, ISongMetadata, IAnalysisSection, IMetaphor } from "../interfaces/analysis.interface";
+import { IAnalysisResult, ISongMetadata, IAnalysisSection, IMetaphor, ITrendingSongs } from "../interfaces/analysis.interface";
 import { PrismaService } from "src/prisma/prisma.service";
 
 export type AnalysisWithSong = IAnalysisResult & { song: ISongMetadata };
@@ -68,9 +69,37 @@ export class AnalysisRepositoryImpl implements IAnalysisRepository {
         }),
       ]);
       return Ok(undefined);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       return Err('Lỗi khi lưu trữ bản phân tích âm nhạc.');
+    }
+  }
+
+  async findTrendings(limit: number = 10, offset: number): Promise<Result<ITrendingSongs, string>> {
+    try {
+      const items = await this.prismaService.analysis.findMany({
+        take: limit,
+        skip: offset,
+        orderBy: { createdAt: 'desc' },
+        include: { song: true },
+      });
+
+      const total = await this.prismaService.analysis.count();
+
+      const formattedItems: ISongMetadata[] = items.map(record => ({
+        id: record.song.id,
+        title: record.song.title,
+        artist: record.song.artist,
+        album: record.song.album,
+        imageUrl: record.song.imageUrl,
+        spotifyUrl: record.song.spotifyUrl,
+      }));
+
+      return Ok({
+        items: formattedItems,
+        total
+      });
+    } catch (error) {
+      return Err('Lỗi truy xuất bài hát thịnh hành.');
     }
   }
 }

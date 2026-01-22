@@ -46,7 +46,7 @@ async function bootstrap() {
 
   await app.listen(port);
   logger.log(`🚀 Ứng dụng Analyrics đang chạy tại: http://localhost:${port}/api`);
-  logger.log(`📖 Tài liệu Swagger: http://localhost:${port}/docs`);
+  logger.log(`📖 Tài liệu Swagger: http://localhost:${port}/api/docs`);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-floating-promises

@@ -26,3 +26,8 @@ export interface IAnalysisResult {
   metaphors: IMetaphor[];
   coreMessage: string;
 }
+
+export interface ITrendingSongs {
+  items: ISongMetadata[],
+  total: number
+}

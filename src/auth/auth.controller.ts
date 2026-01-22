@@ -10,7 +10,7 @@ import { UserResponse, LoginDto, RegisterDto, UserData } from './auth.dto';
 import { IUser, ILoginResult } from './interfaces/auth.interface';
 import { BaseResponse } from 'src/shared/constants/baseResponse';
 
-@Controller('/api/auth')
+@Controller('/auth')
 @ApiTags('Auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) { }

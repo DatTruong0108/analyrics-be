@@ -1,65 +1,50 @@
-/* System Package */
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
-
-/* Application Package */
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 import { BaseResponse } from 'src/shared/constants/baseResponse';
 
 export class UserData {
-  @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
+  @ApiProperty({ example: '60ca2f2b-7430-474a-b0d8-...', description: 'ID duy nhất của người dùng' })
   id: string;
 
-  @ApiProperty({ example: 'Hieu Thu Hai' })
+  @ApiProperty({ example: 'Nguyễn Văn Đạt', description: 'Tên hiển thị' })
   name: string;
 
-  @ApiProperty({ example: 'hieuthuhai@example.com' })
+  @ApiProperty({ example: 'dat@example.com', description: 'Email dùng để đăng nhập' })
   email: string;
 
-  @ApiProperty({ example: 'USER' })
+  @ApiProperty({ example: 'USER', description: 'Vai trò trong hệ thống' })
   role: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: '2026-01-13T12:00:00Z', description: 'Ngày tạo tài khoản' })
   created_at: Date;
 }
 
-export class UserResponse extends BaseResponse {
-  @ApiProperty({ type: UserData, description: 'User data' })
-  data: UserData;
-}
-
-export class RegisterDto {
-  @ApiProperty()
-  @IsEmail()
+export class LoginDto {
+  @ApiProperty({ example: 'dat@example.com', description: 'Email tài khoản' })
+  @IsEmail({}, { message: 'Email không đúng định dạng' })
+  @IsNotEmpty({ message: 'Email không được để trống' })
   email: string;
 
-  @ApiProperty()
-  @IsNotEmpty()
+  @ApiProperty({ example: 'Password123!', description: 'Mật khẩu bảo mật' })
   @IsString()
+  @IsNotEmpty({ message: 'Mật khẩu không được để trống' })
+  @MinLength(6, { message: 'Mật khẩu phải có ít nhất 6 ký tự' })
+  password: string;
+}
+
+export class RegisterDto extends LoginDto {
+  @ApiProperty({ example: 'Nguyễn Văn Đạt', description: 'Họ và tên đầy đủ' })
+  @IsString()
+  @IsNotEmpty({ message: 'Tên không được để trống' })
   name: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional({ example: '0901234567', description: 'Số điện thoại (không bắt buộc)' })
+  @IsOptional()
   @IsString()
-  @MinLength(6)
-  password: string;
+  phone?: string;
 }
 
-export class LoginDto {
-  @ApiProperty()
-  @IsEmail()
-  email: string;
-
-  @ApiProperty()
-  @IsNotEmpty()
-  password: string;
-}
-
-export class ForgotPasswordDto {
-  @ApiProperty()
-  @IsEmail()
-  email: string;
-
-  @ApiProperty()
-  @IsNotEmpty()
-  @MinLength(6)
-  newPassword: string;
+export class UserResponse extends BaseResponse {
+  @ApiProperty({ type: UserData })
+  data: UserData;
 }

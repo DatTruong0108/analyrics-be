@@ -9,6 +9,7 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { IAuthRepository } from './repositories/auth.repository';
 import { AuthRepositoryImpl } from './repositories/auth.repository.impl';
+import { AtStrategy } from './strategies/at.strategy';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { AuthRepositoryImpl } from './repositories/auth.repository.impl';
   ],
   providers: [
     AuthService,
+    AtStrategy,
     JwtStrategy,
     {
       provide: IAuthRepository,

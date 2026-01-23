@@ -16,3 +16,8 @@ export interface ILoginResult {
   user: IUser;
   accessToken: string;
 } 
+
+export interface IPayload {
+  sub: string;
+  email: string;
+}

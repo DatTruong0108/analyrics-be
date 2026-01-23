@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* System Package */
 import { Injectable } from "@nestjs/common";
 import { Result, Ok, Err } from "oxide.ts";
@@ -26,14 +29,21 @@ export class AnalysisService {
     return await this.searchService.search(query, page, limit);
   }
 
-  async getOrGenerateAnalysis(songDto: ISongMetadata): Promise<Result<AnalysisWithSong, string>> {
+  async getOrGenerateAnalysis(userId: string | null, songDto: ISongMetadata): Promise<Result<AnalysisWithSong, string>> {
     try {
       // 1. Kiểm tra Database xem bài hát đã từng được phân tích chưa
       const existingRes = await this.repository.findAnalysisBySongId(songDto.id);
       if (existingRes.isErr()) return Err(existingRes.unwrapErr());
 
       const cachedData = existingRes.unwrap();
-      if (cachedData) return Ok(cachedData); // Trả về kết quả từ DB nếu có
+      if (cachedData) {
+        if (userId) {
+          // Chúng ta cần ID của bản phân tích để ghi lịch sử
+          const analysisId = (cachedData as any).id;
+          await this.repository.recordUserHistory(userId, analysisId);
+        }
+        return Ok(cachedData); // Trả về kết quả từ DB nếu có
+      }
 
       // 2. Nếu chưa có, lấy lời bài hát từ Genius
       const lyricsRes = await this.lyricsService.getLyrics(songDto.title, songDto.artist);
@@ -50,7 +60,7 @@ export class AnalysisService {
       const analysisData = aiRes.unwrap();
 
       // 4. Lưu cả thông tin bài hát và bản phân tích vào Database (Transaction)
-      const saveRes = await this.repository.saveAnalysis(songDto, analysisData);
+      const saveRes = await this.repository.saveAnalysis(userId, songDto, analysisData);
       if (saveRes.isErr()) return Err(saveRes.unwrapErr());
 
       // 5. Trả về kết quả hoàn chỉnh

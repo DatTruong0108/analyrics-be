@@ -44,33 +44,91 @@ export class AnalysisRepositoryImpl implements IAnalysisRepository {
     } catch { return Err('Lỗi truy vấn cơ sở dữ liệu.'); }
   }
 
-  async saveAnalysis(song: ISongMetadata, analysis: IAnalysisResult): Promise<Result<void, string>> {
+  async saveAnalysis(userId: string | null, song: ISongMetadata, analysis: IAnalysisResult): Promise<Result<void, string>> {
     try {
-      // Chuyển đổi từ Interface sang InputJsonValue để Prisma chấp nhận
-      const sectionsJson = analysis.analysis as unknown as Prisma.InputJsonValue;
-      const metaphorsJson = analysis.metaphors as unknown as Prisma.InputJsonValue;
-
-      await this.prismaService.$transaction([
-        this.prismaService.song.upsert({
+      await this.prismaService.$transaction(async (tx) => {
+        // 1. Lưu hoặc cập nhật thông tin bài hát (Metadata)
+        await tx.song.upsert({
           where: { id: song.id },
-          update: { ...song },
-          create: { ...song },
-        }),
-        this.prismaService.analysis.create({
-          data: {
-            songId: song.id,
-            fullLyrics: analysis.fullLyrics,
-            vibe: analysis.vibe,
-            overview: analysis.overview,
-            coreMessage: analysis.coreMessage,
-            sections: sectionsJson,
-            metaphors: metaphorsJson,
+          update: {
+            title: song.title,
+            artist: song.artist,
+            album: song.album,
+            imageUrl: song.imageUrl,
+            spotifyUrl: song.spotifyUrl,
           },
-        }),
-      ]);
+          create: {
+            id: song.id,
+            title: song.title,
+            artist: song.artist,
+            album: song.album,
+            imageUrl: song.imageUrl,
+            spotifyUrl: song.spotifyUrl,
+          },
+        });
+
+        // 2. Kiểm tra/Tạo bản phân tích dùng chung (Shared Analysis)
+        let analysisRecord = await tx.analysis.findUnique({
+          where: { songId: song.id },
+        });
+
+        if (!analysisRecord) {
+          analysisRecord = await tx.analysis.create({
+            data: {
+              songId: song.id,
+              fullLyrics: analysis.fullLyrics,
+              vibe: analysis.vibe,
+              overview: analysis.overview,
+              coreMessage: analysis.coreMessage,
+              sections: analysis.analysis as unknown as Prisma.InputJsonValue,
+              metaphors: analysis.metaphors as unknown as Prisma.InputJsonValue,
+            },
+          });
+        }
+
+        // 3. Ghi vết vào lịch sử cá nhân (UserHistory)
+        // Dùng upsert để nếu người dùng xem lại bài này, thời gian createdAt sẽ được cập nhật mới nhất
+        if (userId) {
+          await tx.userHistory.upsert({
+            where: {
+              userId_analysisId: {
+                userId: userId,
+                analysisId: analysisRecord.id,
+              },
+            },
+            update: { createdAt: new Date() },
+            create: {
+              userId: userId,
+              analysisId: analysisRecord.id,
+            },
+          });
+        }
+      });
+
       return Ok(undefined);
     } catch (error) {
-      return Err('Lỗi khi lưu trữ bản phân tích âm nhạc.');
+      console.error('Save Analysis Transaction Error:', error);
+      return Err('Lỗi khi lưu trữ dữ liệu vào hệ thống.');
+    }
+  }
+
+  async recordUserHistory(userId: string, analysisId: string): Promise<void> {
+    try {
+      await this.prismaService.userHistory.upsert({
+        where: {
+          userId_analysisId: {
+            userId,
+            analysisId,
+          },
+        },
+        update: { createdAt: new Date() }, // Đưa bài hát lên đầu danh sách
+        create: {
+          userId,
+          analysisId,
+        },
+      });
+    } catch (error) {
+      console.error('Record History Error:', error);
     }
   }
 
@@ -100,6 +158,41 @@ export class AnalysisRepositoryImpl implements IAnalysisRepository {
       });
     } catch (error) {
       return Err('Lỗi truy xuất bài hát thịnh hành.');
+    }
+  }
+
+  async findUserHistory(userId: string, limit: number, offset: number): Promise<Result<ITrendingSongs, string>> {
+    try {
+      const [history, total] = await this.prismaService.$transaction([
+        this.prismaService.userHistory.findMany({
+          where: { userId },
+          take: limit,
+          skip: offset,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            analysis: {
+              include: { song: true }
+            }
+          },
+        }),
+        this.prismaService.userHistory.count({ where: { userId } }),
+      ]);
+
+      const formattedItems: ISongMetadata[] = history.map(record => ({
+        id: record.analysis.song.id,
+        title: record.analysis.song.title,
+        artist: record.analysis.song.artist,
+        album: record.analysis.song.album,
+        imageUrl: record.analysis.song.imageUrl,
+        spotifyUrl: record.analysis.song.spotifyUrl,
+      }));
+
+      return Ok({
+        items: formattedItems,
+        total
+      });
+    } catch (e) {
+      return Err('Lỗi truy vấn lịch sử.');
     }
   }
 }

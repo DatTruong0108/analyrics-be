@@ -1,5 +1,5 @@
 // /* System Package */
-import { Controller, Get, Query, Res, Body, HttpStatus, Post } from "@nestjs/common";
+import { Controller, Get, Query, Res, Body, HttpStatus, Post, UseGuards } from "@nestjs/common";
 import { Response } from "express";
 import { ApiQuery, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { Result, match } from "oxide.ts";
@@ -10,6 +10,8 @@ import { ISongMetadata } from "./interfaces/analysis.interface";
 import { IPaginatedResult } from "src/shared/constants/paginatedResult";
 import { AnalysisWithSong } from "./repositories/analysis.repository.impl";
 import { SongMetadataDto } from "./analysis.dto";
+import { AtGuard } from "src/auth/guards/at.guard";
+import { GetCurrentUserId } from "src/shared/decorators/getCurrentUserId.decorator";
 
 @ApiTags('Analysis')
 @Controller('analysis')
@@ -47,13 +49,15 @@ export class AnalysisController {
     });
   }
 
+  @UseGuards(AtGuard)
   @Post('analyze')
   @ApiOperation({ summary: 'Phân tích chi tiết lời bài hát bằng AI' })
   async analyze(
+    @GetCurrentUserId() userId: string | null,
     @Body() songMetadata: SongMetadataDto,
     @Res() res: Response
   ): Promise<void> {
-    const result: Result<AnalysisWithSong, string> = await this.analysisService.getOrGenerateAnalysis(songMetadata);
+    const result: Result<AnalysisWithSong, string> = await this.analysisService.getOrGenerateAnalysis(userId, songMetadata);
 
     return match(result, {
       Ok: (data: AnalysisWithSong) => {

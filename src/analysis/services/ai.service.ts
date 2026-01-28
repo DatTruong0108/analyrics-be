@@ -56,7 +56,7 @@ export class AIService {
 
   private buildPrompt(title: string, artist: string, lyrics: string): string {
     return `
-      Bạn là một chuyên gia phê bình âm nhạc quốc tế, nhà ngôn ngữ học và nhà nghiên cứu văn hóa truyền thống Việt Nam.
+      Bạn là một chuyên gia phê bình âm nhạc quốc tế, nhà ngôn ngữ học, nhà nghiên cứu văn hóa truyền thống Việt Nam đồng thời am hiểu văn hóa Gen Z và phân tích bài hát.
       Hãy phân tích sâu sắc bài hát "${title}" của nghệ sĩ "${artist}".
 
       LỜI BÀI HÁT CẦN PHÂN TÍCH:
@@ -71,25 +71,32 @@ export class AIService {
       YÊU CẦU TRẢ VỀ JSON DUY NHẤT (KHÔNG CÓ DẪN GIẢI NGOÀI JSON):
       {
         "fullLyrics": "Nội dung lời bài hát gốc đã được định dạng xuống dòng",
-        "vibe": "Mô tả không khí bài hát (vd: Phẫn nộ, cay đắng, tự tôn)",
-        "overview": "Tóm tắt ngắn gọn ý nghĩa cốt lõi của bài hát (khoảng 3-5 câu)",
+        "vibe": "1 câu NGẮN GỌN về vibe/cảm xúc chủ đạo (tối đa 3-5 từ, ví dụ: Suy, Chữa lành, Flex...)",
+        "overview": "Tóm tắt ngắn gọn ý nghĩa cốt lõi nội dung của bài hát (khoảng 1-2 câu ngắn gọn, tối đa 120 từ)",
         "analysis": [
           {
-            "section": "Tên đoạn (vd: Verse 1, Chorus, Vọng cổ...)",
-            "lyricsQuote": "Trích đoạn lời tiêu biểu của đoạn đó",
-            "content": "Phân tích lớp nghĩa sâu xa, Slang, hoặc kỹ thuật sử dụng trong đoạn này"
+            "section": "Tên đoạn - PHẢI dùng format chuẩn: Intro, Verse 1, Verse 2, Pre-Chorus, Chorus, Post-Chorus, Bridge, Outro, hoặc Hook",
+            "lyricsQuote": "Nếu đoạn ngắn (dưới 10 câu): trích dẫn TOÀN BỘ lời của đoạn. Nếu đoạn dài: trích 7 câu QUAN TRỌNG NHẤT làm đại diện",
+            "content": "Phân tích lớp nghĩa sâu xa, Slang, hoặc kỹ thuật sử dụng trong đoạn này (NGẮN GỌN, 4-5 câu, đi thẳng vào ý chính)."
           }
         ],
         "metaphors": [
           {
-            "phrase": "Cụm từ ẩn dụ hoặc từ ngữ đặc biệt",
-            "meaning": "Giải thích chi tiết nguồn gốc và ý nghĩa"
+            "phrase": "Cụm từ ẩn dụ hoặc từ ngữ đặc biệt, đắt giá",
+            "meaning": "Giải thích chi tiết nguồn gốc và ý nghĩa (NGẮN GỌN, 1-2 câu, đi thẳng vào ý chính)."
           }
         ],
-        "coreMessage": "Thông điệp chính mà nghệ sĩ muốn truyền tải qua bài hát này"
+        "coreMessage": "Thông điệp cốt lõi mà nghệ sĩ muốn truyền tải qua bài hát này (1 câu duy nhất, tối đa 100 từ)."
       }
 
-      LƯU Ý: Mọi nội dung phân tích phải bằng Tiếng Việt.
+      YÊU CẦU QUAN TRỌNG VỀ TÊN ĐOẠN (section):
+      - PHẢI sử dụng tên chuẩn theo cấu trúc bài hát: Intro, Verse 1, Verse 2, Verse 3, Pre-Chorus, Chorus, Post-Chorus, Bridge, Outro, Hook
+      - Đánh số các Verse theo thứ tự: Verse 1, Verse 2, Verse 3...
+      - Nếu có nhiều Chorus giống nhau, có thể ghi "Chorus" hoặc "Chorus (lặp lại)"
+      - KHÔNG được tự đặt tên tùy ý như "Đoạn 1", "Phần mở đầu", v.v.
+      - Giữ tên tiếng Anh để thống nhất giữa các bài
+
+      LƯU Ý: Mọi nội dung phân tích phải bằng Tiếng Việt. Giọng văn: Khách quan, sâu sắc, hiện đại, ngôn ngữ Việt Nam.
     `;
   }
 }

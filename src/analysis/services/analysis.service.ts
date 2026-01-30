@@ -14,6 +14,7 @@ import { AIService } from "./ai.service";
 import { ISongMetadata } from "../interfaces/analysis.interface";
 import { IPaginatedResult } from "src/shared/constants/paginatedResult";
 import { AnalysisWithSong } from "../repositories/analysis.repository.impl";
+import { AnalyzeSongDto } from "../analysis.dto";
 
 @Injectable()
 export class AnalysisService {
@@ -29,20 +30,22 @@ export class AnalysisService {
     return await this.searchService.search(query, page, limit);
   }
 
-  async getOrGenerateAnalysis(userId: string | null, songDto: ISongMetadata): Promise<Result<AnalysisWithSong, string>> {
+  async getOrGenerateAnalysis(userId: string | null, songDto: AnalyzeSongDto): Promise<Result<AnalysisWithSong & { fromCache: boolean }, string>> {
     try {
-      // 1. Kiểm tra Database xem bài hát đã từng được phân tích chưa
-      const existingRes = await this.repository.findAnalysisBySongId(songDto.id);
-      if (existingRes.isErr()) return Err(existingRes.unwrapErr());
+      // 1. Chỉ kiểm tra Cache nếu người dùng KHÔNG yêu cầu forceRefresh
+      if (!songDto.forceRefresh) {
+        const existingRes = await this.repository.findAnalysisBySongId(songDto.id);
+        if (existingRes.isErr()) return Err(existingRes.unwrapErr());
 
-      const cachedData = existingRes.unwrap();
-      if (cachedData) {
-        if (userId) {
-          // Chúng ta cần ID của bản phân tích để ghi lịch sử
-          const analysisId = (cachedData as any).id;
-          await this.repository.recordUserHistory(userId, analysisId);
+        const cachedData = existingRes.unwrap();
+        if (cachedData) {
+          if (userId) {
+            const analysisId = (cachedData as any).id;
+            await this.repository.recordUserHistory(userId, analysisId);
+          }
+          // Trả về kèm flag fromCache: true
+          return Ok({ ...cachedData, fromCache: true });
         }
-        return Ok(cachedData); // Trả về kết quả từ DB nếu có
       }
 
       // 2. Nếu chưa có, lấy lời bài hát từ Genius
@@ -67,6 +70,7 @@ export class AnalysisService {
       return Ok({
         ...analysisData,
         song: songDto,
+        fromCache: false
       });
 
     } catch (error: unknown) {

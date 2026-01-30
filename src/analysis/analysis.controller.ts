@@ -9,7 +9,7 @@ import { AnalysisService } from "./services/analysis.service";
 import { ISongMetadata } from "./interfaces/analysis.interface";
 import { IPaginatedResult } from "src/shared/constants/paginatedResult";
 import { AnalysisWithSong } from "./repositories/analysis.repository.impl";
-import { SongMetadataDto } from "./analysis.dto";
+import { AnalyzeSongDto } from "./analysis.dto";
 import { AtGuard } from "src/auth/guards/at.guard";
 import { GetCurrentUserId } from "src/shared/decorators/getCurrentUserId.decorator";
 
@@ -54,16 +54,18 @@ export class AnalysisController {
   @ApiOperation({ summary: 'Phân tích chi tiết lời bài hát bằng AI' })
   async analyze(
     @GetCurrentUserId() userId: string | null,
-    @Body() songMetadata: SongMetadataDto,
+    @Body() songMetadata: AnalyzeSongDto,
     @Res() res: Response
   ): Promise<void> {
-    const result: Result<AnalysisWithSong, string> = await this.analysisService.getOrGenerateAnalysis(userId, songMetadata);
+    const result: Result<AnalysisWithSong & { fromCache: boolean }, string> = await this.analysisService.getOrGenerateAnalysis(userId, songMetadata);
 
     return match(result, {
-      Ok: (data: AnalysisWithSong) => {
+      Ok: (data: AnalysisWithSong & { fromCache: boolean }) => {
         res.status(HttpStatus.OK).json({
           statusCode: HttpStatus.OK,
-          message: 'Phân tích bài hát thành công',
+          message: data.fromCache
+            ? 'Sử dụng bản phân tích từ bộ nhớ tạm'
+            : 'Phân tích bài hát mới thành công',
           data: data,
         });
       },

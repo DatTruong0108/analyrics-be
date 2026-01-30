@@ -71,7 +71,7 @@ export class AIService {
       YÊU CẦU TRẢ VỀ JSON DUY NHẤT (KHÔNG CÓ DẪN GIẢI NGOÀI JSON):
       {
         "fullLyrics": "Nội dung lời bài hát gốc đã được định dạng xuống dòng",
-        "vibe": "1 câu NGẮN GỌN về vibe/cảm xúc chủ đạo (tối đa 3-5 từ, ví dụ: Suy, Chữa lành, Flex...)",
+        "vibe": "1 câu NGẮN GỌN về vibe/cảm xúc chủ đạo (tối đa 3-4 từ, ví dụ: Suy, Chữa lành, ...). Lưu ý: chỉ sử dụng tiếng Việt",
         "overview": "Tóm tắt ngắn gọn ý nghĩa cốt lõi nội dung của bài hát (khoảng 1-2 câu ngắn gọn, tối đa 120 từ)",
         "analysis": [
           {

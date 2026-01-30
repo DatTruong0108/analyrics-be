@@ -14,14 +14,14 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT') || 3000;
-  const frontendUrl = configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+  const frontendUrl = configService.get<string>('NODE_ENV') === "development" ? configService.get<string>('FE_URL') : configService.get<string>('FE_URL_PROD');
 
   app.setGlobalPrefix('api');
 
   app.use(cookieParser());
 
   app.enableCors({
-    origin: frontendUrl,
+    origin: [frontendUrl],
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   });

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsUrl } from 'class-validator';
+import { IsNotEmpty, IsString, IsUrl, IsOptional, IsBoolean } from 'class-validator';
 import { BaseResponse } from 'src/shared/constants/baseResponse';
 
 export class SongMetadataDto {
@@ -73,16 +73,25 @@ export class DetailedAnalysisDto {
   coreMessage: string;
 }
 
+export class AnalyzeSongDto extends SongMetadataDto {
+  @ApiProperty({ example: false, description: 'Ép buộc AI tạo bản phân tích mới', required: false })
+  @IsOptional()
+  @IsBoolean()
+  forceRefresh?: boolean;
+}
+
 export class AnalysisResponse extends BaseResponse {
-  @ApiProperty({ 
+  @ApiProperty({
     type: 'object',
     properties: {
       song: { type: SongMetadataDto },
-      analysis: { type: DetailedAnalysisDto }
+      analysis: { type: DetailedAnalysisDto },
+      fromCache: { type: 'boolean' }
     }
   })
   data: {
     song: SongMetadataDto;
     analysis: DetailedAnalysisDto;
+    fromCache: boolean;
   };
 }

@@ -67,24 +67,28 @@ export class AnalysisRepositoryImpl implements IAnalysisRepository {
           },
         });
 
-        // 2. Kiểm tra/Tạo bản phân tích dùng chung (Shared Analysis)
-        let analysisRecord = await tx.analysis.findUnique({
+        // 2. SỬ DỤNG UPSERT CHO ANALYSIS (Thay vì chỉ create nếu thiếu)
+        const analysisRecord = await tx.analysis.upsert({
           where: { songId: song.id },
+          update: {
+            fullLyrics: analysis.fullLyrics,
+            vibe: analysis.vibe,
+            overview: analysis.overview,
+            coreMessage: analysis.coreMessage,
+            sections: analysis.analysis as unknown as Prisma.InputJsonValue,
+            metaphors: analysis.metaphors as unknown as Prisma.InputJsonValue,
+            updatedAt: new Date(), // Cập nhật thời gian phân tích mới nhất
+          },
+          create: {
+            songId: song.id,
+            fullLyrics: analysis.fullLyrics,
+            vibe: analysis.vibe,
+            overview: analysis.overview,
+            coreMessage: analysis.coreMessage,
+            sections: analysis.analysis as unknown as Prisma.InputJsonValue,
+            metaphors: analysis.metaphors as unknown as Prisma.InputJsonValue,
+          },
         });
-
-        if (!analysisRecord) {
-          analysisRecord = await tx.analysis.create({
-            data: {
-              songId: song.id,
-              fullLyrics: analysis.fullLyrics,
-              vibe: analysis.vibe,
-              overview: analysis.overview,
-              coreMessage: analysis.coreMessage,
-              sections: analysis.analysis as unknown as Prisma.InputJsonValue,
-              metaphors: analysis.metaphors as unknown as Prisma.InputJsonValue,
-            },
-          });
-        }
 
         // 3. Ghi vết vào lịch sử cá nhân (UserHistory)
         // Dùng upsert để nếu người dùng xem lại bài này, thời gian createdAt sẽ được cập nhật mới nhất
@@ -96,7 +100,7 @@ export class AnalysisRepositoryImpl implements IAnalysisRepository {
                 analysisId: analysisRecord.id,
               },
             },
-            update: { createdAt: new Date() },
+            update: { updatedAt: new Date() },
             create: {
               userId: userId,
               analysisId: analysisRecord.id,

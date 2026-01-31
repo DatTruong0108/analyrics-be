@@ -5,10 +5,9 @@
 ## 🚀 Features
 
 -   **AI-Powered Analysis**: Uses **Google Gemini 1.5 Flash** to analyze lyrics for vibe, metaphors, and core messages.
--   **Song Data**: Integrates with **Genius** (via `genius-lyrics` & `puppeteer`) to fetch accurate lyrics and metadata.
+-   **Song Data**: Integrates with **LrcLib** to fetch accurate lyrics and **Spotify** to fetch accurate metadata.
 -   **Authentication**: Secure JWT-based authentication (Passport + Bcrypt) for user management.
 -   **Database**: robust data persistence using **PostgreSQL** and **Prisma ORM**.
--   **Advanced Scraping**: Implements a stealthy headless browser solution (Puppeteer) to bypass anti-bot protections when fetching lyrics.
 
 ## 🛠️ Tech Stack
 

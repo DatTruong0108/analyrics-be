@@ -34,6 +34,7 @@ model Song {
   album       String
   imageUrl    String
   spotifyUrl  String
+  previewUrl  String?
   analysis    Analysis?
   favoritedBy Favorite[]
   createdAt   DateTime  @default(now())
@@ -45,6 +46,7 @@ model Analysis {
   song        Song     @relation(fields: [songId], references: [id])
   
   fullLyrics  String   @db.Text
+  syncedLyrics String?  @db.Text
   vibe        String
   overview    String   @db.Text
   coreMessage String   @db.Text

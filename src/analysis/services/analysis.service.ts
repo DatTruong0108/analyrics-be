@@ -48,16 +48,16 @@ export class AnalysisService {
         }
       }
 
-      // 2. Nếu chưa có, lấy lời bài hát từ Genius
+      // 2. Nếu chưa có, lấy lời bài hát từ LrcLib
       const lyricsRes = await this.lyricsService.getLyrics(songDto.title, songDto.artist);
       if (lyricsRes.isErr()) return Err(lyricsRes.unwrapErr());
-      const fullLyrics = lyricsRes.unwrap();
+      const { plain, synced } = lyricsRes.unwrap();
 
       // 3. Gửi lời bài hát sang AI để phân tích đa thể loại (Rap, Pop, Cải lương...)
       const aiRes = await this.aiService.analyzeLyrics(
         songDto.title,
         songDto.artist,
-        fullLyrics
+        plain
       );
       if (aiRes.isErr()) return Err(aiRes.unwrapErr());
       const analysisData = aiRes.unwrap();
@@ -69,6 +69,7 @@ export class AnalysisService {
       // 5. Trả về kết quả hoàn chỉnh
       return Ok({
         ...analysisData,
+        syncedLyrics: synced,
         song: songDto,
         fromCache: false
       });

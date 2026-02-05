@@ -24,6 +24,7 @@ export class AnalysisRepositoryImpl implements IAnalysisRepository {
       if (!record) return Ok(null);
       const formattedResult: AnalysisWithSong = {
         fullLyrics: record.fullLyrics,
+        syncedLyrics: record.syncedLyrics,
         vibe: record.vibe,
         overview: record.overview,
         coreMessage: record.coreMessage,
@@ -37,6 +38,7 @@ export class AnalysisRepositoryImpl implements IAnalysisRepository {
           album: record.song.album,
           imageUrl: record.song.imageUrl,
           spotifyUrl: record.song.spotifyUrl,
+          previewUrl: record.song.previewUrl,
         },
       };
 
@@ -56,6 +58,7 @@ export class AnalysisRepositoryImpl implements IAnalysisRepository {
             album: song.album,
             imageUrl: song.imageUrl,
             spotifyUrl: song.spotifyUrl,
+            previewUrl: song.previewUrl,
           },
           create: {
             id: song.id,
@@ -64,6 +67,7 @@ export class AnalysisRepositoryImpl implements IAnalysisRepository {
             album: song.album,
             imageUrl: song.imageUrl,
             spotifyUrl: song.spotifyUrl,
+            previewUrl: song.previewUrl,
           },
         });
 
@@ -72,6 +76,7 @@ export class AnalysisRepositoryImpl implements IAnalysisRepository {
           where: { songId: song.id },
           update: {
             fullLyrics: analysis.fullLyrics,
+            syncedLyrics: analysis.syncedLyrics,
             vibe: analysis.vibe,
             overview: analysis.overview,
             coreMessage: analysis.coreMessage,
@@ -82,6 +87,7 @@ export class AnalysisRepositoryImpl implements IAnalysisRepository {
           create: {
             songId: song.id,
             fullLyrics: analysis.fullLyrics,
+            syncedLyrics: analysis.syncedLyrics,
             vibe: analysis.vibe,
             overview: analysis.overview,
             coreMessage: analysis.coreMessage,
@@ -154,6 +160,7 @@ export class AnalysisRepositoryImpl implements IAnalysisRepository {
         album: record.song.album,
         imageUrl: record.song.imageUrl,
         spotifyUrl: record.song.spotifyUrl,
+        previewUrl: record.song.previewUrl
       }));
 
       return Ok({
@@ -189,6 +196,7 @@ export class AnalysisRepositoryImpl implements IAnalysisRepository {
         album: record.analysis.song.album,
         imageUrl: record.analysis.song.imageUrl,
         spotifyUrl: record.analysis.song.spotifyUrl,
+        previewUrl: record.analysis.song.previewUrl
       }));
 
       return Ok({

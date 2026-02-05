@@ -5,6 +5,7 @@ export interface ISongMetadata {
   album: string;
   imageUrl: string;
   spotifyUrl: string;
+  previewUrl: string | null;
 }
 
 export interface IAnalysisSection {
@@ -20,6 +21,7 @@ export interface IMetaphor {
 
 export interface IAnalysisResult {
   fullLyrics: string;
+  syncedLyrics: string | null;
   vibe: string;
   overview: string;
   analysis: IAnalysisSection[];

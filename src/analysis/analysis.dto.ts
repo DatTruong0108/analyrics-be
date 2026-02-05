@@ -32,6 +32,12 @@ export class SongMetadataDto {
   @IsString()
   @IsUrl()
   spotifyUrl: string;
+
+  @ApiProperty({ example: 'https://...', description: 'Link nghe trước' })
+  @IsString()
+  @IsOptional()
+  @IsUrl()
+  previewUrl: string;
 }
 
 export class AnalysisSectionDto {
@@ -56,6 +62,9 @@ export class MetaphorDto {
 export class DetailedAnalysisDto {
   @ApiProperty({ example: 'Lời bài hát đầy đủ...' })
   fullLyrics: string;
+
+  @ApiProperty({ example: 'Lời bài hát đã được đồng bộ...' })
+  syncedLyrics: string;
 
   @ApiProperty({ example: 'Châm biếm, dứt khoát' })
   vibe: string;

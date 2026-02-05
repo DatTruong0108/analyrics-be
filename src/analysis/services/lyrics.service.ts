@@ -10,12 +10,12 @@ export class LyricsService {
   private readonly logger = new Logger(LyricsService.name);
   private readonly LRCLIB_API = 'https://lrclib.net/api/get';
 
-  async getLyrics(title: string, artist: string): Promise<Result<string, string>> {
+  async getLyrics(title: string, artist: string): Promise<Result<{ plain: string, synced: string }, string>> {
     try {
       const response = await axios.get(process.env.GET_LYRICS_API || this.LRCLIB_API, {
-        params: { 
-          track_name: title, 
-          artist_name: artist 
+        params: {
+          track_name: title,
+          artist_name: artist
         }
       });
 
@@ -23,10 +23,9 @@ export class LyricsService {
         return Err('Lỗi khi lấy lời bài hát từ hệ thống.');
       }
 
-      const lyrics = response.data?.plainLyrics;
-      if (!lyrics) return Err('Bài hát này chưa có lời trên hệ thống.');
+      const { plainLyrics, syncedLyrics } = response.data;
 
-      return Ok(lyrics);
+      return Ok({ plain: plainLyrics, synced: syncedLyrics });
 
     } catch (error) {
       this.logger.error(`Lyrics Service Error: ${error.message}`);

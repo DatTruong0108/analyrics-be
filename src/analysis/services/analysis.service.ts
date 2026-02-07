@@ -61,6 +61,7 @@ export class AnalysisService {
       );
       if (aiRes.isErr()) return Err(aiRes.unwrapErr());
       const analysisData = aiRes.unwrap();
+      analysisData.syncedLyrics = synced;
 
       // 4. Lưu cả thông tin bài hát và bản phân tích vào Database (Transaction)
       const saveRes = await this.repository.saveAnalysis(userId, songDto, analysisData);
@@ -69,7 +70,6 @@ export class AnalysisService {
       // 5. Trả về kết quả hoàn chỉnh
       return Ok({
         ...analysisData,
-        syncedLyrics: synced,
         song: songDto,
         fromCache: false
       });

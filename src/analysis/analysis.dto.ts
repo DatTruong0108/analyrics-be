@@ -37,7 +37,7 @@ export class SongMetadataDto {
   @IsString()
   @IsOptional()
   @IsUrl()
-  previewUrl: string;
+  previewUrl: string | null;
 }
 
 export class AnalysisSectionDto {

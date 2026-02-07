@@ -63,6 +63,16 @@ export class AnalysisService {
       const analysisData = aiRes.unwrap();
       analysisData.syncedLyrics = synced;
 
+      if (!songDto.previewUrl) {
+        const previewUrlRes = await this.searchService.getPreviewUrl(songDto.title, songDto.artist);
+        if (previewUrlRes.isErr()) {
+          console.error('Error getting preview URL:', previewUrlRes.unwrapErr());
+          songDto.previewUrl = null;
+        } else {
+          songDto.previewUrl = previewUrlRes.unwrap();
+        }
+      }
+
       // 4. Lưu cả thông tin bài hát và bản phân tích vào Database (Transaction)
       const saveRes = await this.repository.saveAnalysis(userId, songDto, analysisData);
       if (saveRes.isErr()) return Err(saveRes.unwrapErr());

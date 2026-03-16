@@ -37,7 +37,7 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('Analyrics API')
     .setDescription('Tài liệu API cho hệ thống phân tích lời bài hát thông minh')
-    .setVersion('1.0')
+    .setVersion('2.0')
     .addBearerAuth()
     .build();
 
@@ -45,8 +45,8 @@ async function bootstrap() {
   SwaggerModule.setup('/api/docs', app, document);
 
   await app.listen(port);
-  logger.log(`🚀 Ứng dụng Analyrics đang chạy tại: http://localhost:${port}/api`);
-  logger.log(`📖 Tài liệu Swagger: http://localhost:${port}/api/docs`);
+  logger.log(`🚀 Ứng dụng Analyrics đang chạy tại: ${process.env.NODE_ENV==="production" ? process.env.BE_URL_PROD : `http://localhost:${port}`}`);
+  logger.log(`📖 Tài liệu Swagger: ${process.env.NODE_ENV==="production" ? `${process.env.BE_URL_PROD}/api/docs` : `http://localhost:${port}/api/docs`}`);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-floating-promises

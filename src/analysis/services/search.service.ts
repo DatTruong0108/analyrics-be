@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -12,33 +14,91 @@ import { IPaginatedResult } from 'src/shared/constants/paginatedResult';
 
 @Injectable()
 export class SearchService {
-  private readonly SEARCH_API = 'https://lyrics.quocvu.studio/api/search';
   private readonly ITUNES_API = 'https://itunes.apple.com/search';
   private readonly DEEZER_API = 'https://api.deezer.com/search';
 
+  private accessToken: string | null = null;
+  private tokenExpiresAt: number = 0;
+
+  /* Get Spotify access token using Client Credentials Flow */
+  private async getAccessToken(): Promise<Result<string | null, string>> {
+    const now = Date.now();
+    if (this.accessToken && now < this.tokenExpiresAt) {
+      return Ok(this.accessToken);
+    }
+    try {
+      const clientId = process.env.SPOTIFY_CLIENT_ID;
+      const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+      const authUrl = process.env.SPOTIFY_AUTH_URL || 'https://accounts.spotify.com/api/token';
+
+      const params = new URLSearchParams();
+      params.append('grant_type', 'client_credentials');
+
+      const response = await axios.post(authUrl, params, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`
+        }
+      })
+
+      if (response.status === 200) {
+        const data = response.data;
+        this.accessToken = data.access_token;
+        this.tokenExpiresAt = now + (data.expires_in * 1000) - (60 * 1000);
+
+        if (!this.accessToken) {
+          return Err('Không nhận được access token từ Spotify');
+        }
+
+        return Ok(this.accessToken);
+      }
+
+      return Err('Lỗi khi lấy access token từ Spotify');
+    } catch (error) {
+      return Err('Lỗi khi lấy access token từ Spotify');
+    }
+  }
+
   async search(query: string, page: number = 1, limit: number = 1): Promise<Result<IPaginatedResult<ISongMetadata>, string>> {
     try {
-      const response = await axios.get(process.env.SEARCH_API || this.SEARCH_API, {
+      const token = await this.getAccessToken();
+      if (token.isErr()) {
+        return Err(token.unwrapErr());
+      }
+
+      const response = await axios.get(process.env.SPOTIFY_SEARCH_URL || 'https://api.spotify.com/v1/search', {
+        headers: {
+          Authorization: `Bearer ${token.unwrap()}`
+        },
         params: {
           q: query,
+          type: 'track',
+          limit: limit,
+          offset: (page - 1) * limit
         }
       });
 
       if (response.status !== 200) {
-        return Err('Lỗi khi tìm kiếm bài hát từ hệ thống.');
+        return Err('Lỗi khi tìm kiếm bài hát từ Spotify.');
       }
 
-      const songs: ISongMetadata[] = response.data?.songs;
-
-      const startIndex = (page - 1) * limit;
-      const paginatedItems = songs.slice(startIndex, startIndex + limit);
+      const tracks = response.data?.tracks?.items || [];
+      const songs: ISongMetadata[] = tracks.map((track: any) => ({
+        id: track.id,
+        title: track.name,
+        artist: track.artists.map((a: any) => a.name).join(', '),
+        album: track.album.name,
+        imageUrl: track.album.images[0]?.url || '',
+        spotifyUrl: track.external_urls.spotify,
+        previewUrl: track.preview_url || null, 
+      }));
 
       return Ok({
-        items: paginatedItems,
-        total: songs.length,
+        items: songs,
+        total: response.data.tracks.total,
         page,
         limit,
-        totalPages: Math.ceil(songs.length / limit)
+        totalPages: Math.ceil(response.data.tracks.total / limit),
       });
     } catch (error) {
       return Err('Lỗi khi tìm kiếm bài hát từ hệ thống.');

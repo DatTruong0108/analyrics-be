@@ -45,10 +45,17 @@ Before running the project, ensure you have:
 
     ```env
     # Server Configuration
-    BE_PORT=3001
+    BE_URL="http://localhost:3001"
+    FE_URL=
+    FE_URL_PROD=
+    BE_URL_PROD=
+    BE_PORT="3001"
     
     # Database
     DATABASE_URL="postgresql://user:password@localhost:5432/analyrics_db?schema=public"
+
+    # Variables
+    NODE_ENV="development"
     
     # JWT Auth
     JWT_SECRET="your_super_secret_jwt_key"
@@ -56,8 +63,13 @@ Before running the project, ensure you have:
     
     # External APIs
     AI_API_KEY="your_google_gemini_api_key"
-    SEARCH_API="api_url_to_search_songs"
     GET_LYRICS_API="api_url_to_get_lyrics"
+
+    # Spotify configuration
+    SPOTIFY_CLIENT_ID=
+    SPOTIFY_CLIENT_SECRET=
+    SPOTIFY_AUTH_URL="https://accounts.spotify.com/api/token"
+    SPOTIFY_SEARCH_URL="https://api.spotify.com/v1/search"
     ```
 
 4.  **Setup Database**

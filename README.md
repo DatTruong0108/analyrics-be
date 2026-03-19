@@ -4,7 +4,7 @@
 
 ## 🚀 Features
 
--   **AI-Powered Analysis**: Uses **Google Gemini 1.5 Flash** to analyze lyrics for vibe, metaphors, and core messages.
+-   **AI-Powered Analysis**: Uses **Google Gemini 2.5 Flash** to analyze lyrics for vibe, metaphors, and core messages.
 -   **Song Data**: Integrates with **LrcLib** to fetch accurate lyrics and **Spotify** to fetch accurate metadata.
 -   **Authentication**: Secure JWT-based authentication (Passport + Bcrypt) for user management.
 -   **Database**: robust data persistence using **PostgreSQL** and **Prisma ORM**.
@@ -25,6 +25,7 @@ Before running the project, ensure you have:
 *   [Node.js](https://nodejs.org/) (v18 or higher recommended)
 *   [PostgreSQL](https://www.postgresql.org/) (running locally or via Docker)
 *   Gemini API Key ([Get it here](https://aistudio.google.com/app/apikey))
+*   Spotify Client ID and Client Secret ([Get it here](https://developer.spotify.com/dashboard/))
 
 ## 📦 Installation
 

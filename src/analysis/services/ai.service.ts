@@ -72,18 +72,18 @@ export class AIService {
       {
         "fullLyrics": "Nội dung lời bài hát gốc đã được định dạng xuống dòng",
         "vibe": "1 câu NGẮN GỌN về vibe/cảm xúc chủ đạo (tối đa 3-4 từ, ví dụ: Suy, Chữa lành, ...). Lưu ý: chỉ sử dụng tiếng Việt",
-        "overview": "Tóm tắt ngắn gọn ý nghĩa cốt lõi nội dung của bài hát (khoảng 1-2 câu ngắn gọn, tối đa 120 từ)",
+        "overview": "Tóm tắt NGẮN GỌN ý nghĩa cốt lõi nội dung của bài hát (khoảng 1-2 câu ngắn gọn, tối đa 120 từ)",
         "analysis": [
           {
             "section": "Tên đoạn - PHẢI dùng format chuẩn: Intro, Verse 1, Verse 2, Pre-Chorus, Chorus, Post-Chorus, Bridge, Outro, hoặc Hook",
             "lyricsQuote": "Nếu đoạn ngắn (dưới 10 câu): trích dẫn TOÀN BỘ lời của đoạn. Nếu đoạn dài: trích 7 câu QUAN TRỌNG NHẤT làm đại diện",
-            "content": "Phân tích lớp nghĩa sâu xa, Slang, hoặc kỹ thuật sử dụng trong đoạn này (NGẮN GỌN, 4-5 câu, đi thẳng vào ý chính)."
+            "content": "Phân tích ý nghĩa cốt lõi đoạn này (NGẮN GỌN, 4-5 câu, đi thẳng vào ý chính)."
           }
         ],
         "metaphors": [
           {
-            "phrase": "Cụm từ ẩn dụ hoặc từ ngữ đặc biệt, đắt giá",
-            "meaning": "Giải thích chi tiết nguồn gốc và ý nghĩa (NGẮN GỌN, 1-2 câu, đi thẳng vào ý chính)."
+            "phrase": "Câu hát hoặc cụm từ/từ ngữ ẩn dụ, đặc biệt, đắt giá",
+            "meaning": "Giải nghĩa nguồn gốc và ý nghĩa của slang/ẩn dụ đó (NGẮN GỌN, 1-2 câu, đi thẳng vào ý chính)."
           }
         ],
         "coreMessage": "Thông điệp cốt lõi mà nghệ sĩ muốn truyền tải qua bài hát này (1 câu duy nhất, tối đa 100 từ)."

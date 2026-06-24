@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* System Package */
 import { Injectable, Logger } from '@nestjs/common';
-import { Result, Ok, Err } from 'oxide.ts';
+import { Result, Ok } from 'oxide.ts';
 import axios from 'axios';
 
 @Injectable()
@@ -16,20 +16,20 @@ export class LyricsService {
         params: {
           track_name: title,
           artist_name: artist
-        }
+        },
+        validateStatus: () => true
       });
 
       if (response.status !== 200) {
-        return Err('Lỗi khi lấy lời bài hát từ hệ thống.');
+        this.logger.warn(`Lyrics API returned status ${response.status} for "${title}" - "${artist}". Falling back to empty lyrics.`);
+        return Ok({ plain: "", synced: "" });
       }
 
-      const { plainLyrics, syncedLyrics } = response.data;
-
+      const { plainLyrics = "", syncedLyrics = "" } = response.data;
       return Ok({ plain: plainLyrics, synced: syncedLyrics });
-
     } catch (error) {
-      this.logger.error(`Lyrics Service Error: ${error.message}`);
-      return Err('Lỗi khi kết nối với Genius API.');
+      this.logger.warn(`Lyrics API request failed for "${title}" - "${artist}". Falling back to empty lyrics. Error: ${String(error)}`);
+      return Ok({ plain: "", synced: "" });
     }
   }
 }

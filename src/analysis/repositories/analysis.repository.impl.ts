@@ -85,7 +85,6 @@ export class AnalysisRepositoryImpl implements IAnalysisRepository {
             updatedAt: new Date(), // Cập nhật thời gian phân tích mới nhất
           },
           create: {
-            songId: song.id,
             fullLyrics: analysis.fullLyrics,
             syncedLyrics: analysis.syncedLyrics,
             vibe: analysis.vibe,
@@ -93,6 +92,9 @@ export class AnalysisRepositoryImpl implements IAnalysisRepository {
             coreMessage: analysis.coreMessage,
             sections: analysis.analysis as unknown as Prisma.InputJsonValue,
             metaphors: analysis.metaphors as unknown as Prisma.InputJsonValue,
+            song: {
+              connect: { id: song.id },
+            },
           },
         });
 

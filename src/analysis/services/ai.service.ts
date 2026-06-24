@@ -10,6 +10,7 @@ import { IAnalysisResult } from "../interfaces/analysis.interface";
 
 @Injectable()
 export class AIService {
+  private readonly MAX_WEB_SEARCH_ATTEMPTS = 4;
   private readonly genAI: GoogleGenerativeAI;
   private readonly model: GenerativeModel;
 
@@ -26,36 +27,69 @@ export class AIService {
     try {
       const normalizedLyrics = lyrics.trim();
       const shouldUseWebSearch = normalizedLyrics === "";
-      const prompt = this.buildPrompt(title, artist, normalizedLyrics);
-      const request: GenerateContentRequest & { tools?: Array<Record<string, unknown>> } = {
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: prompt }]
-          }
-        ]
-      };
+      let parsedData: IAnalysisResult | null = null;
 
       if (shouldUseWebSearch) {
-        request.tools = [
-          {
-            googleSearch: {}
+        for (let attempt = 1; attempt <= this.MAX_WEB_SEARCH_ATTEMPTS; attempt++) {
+          const prompt = this.buildPrompt(title, artist, normalizedLyrics, attempt);
+          const request: GenerateContentRequest & { tools?: Array<Record<string, unknown>> } = {
+            contents: [
+              {
+                role: "user",
+                parts: [{ text: prompt }]
+              }
+            ],
+            generationConfig: {
+              responseMimeType: "application/json",
+            },
+            tools: [
+              {
+                googleSearch: {}
+              }
+            ]
+          };
+
+          const result = await this.model.generateContent(request);
+          const responseText = result.response?.text();
+          if (!responseText) continue;
+
+          try {
+            const candidate = this.parseAnalysisResponse(responseText);
+            const fullLyrics = (candidate.fullLyrics || "").trim();
+            if (fullLyrics.length > 0 && fullLyrics !== "LYRICS_NOT_FOUND") {
+              parsedData = candidate;
+              break;
+            }
+          } catch {
+            // Retry the next attempt with a stronger prompt.
           }
-        ];
+        }
       } else {
-        request.generationConfig = {
-          responseMimeType: "application/json",
+        const prompt = this.buildPrompt(title, artist, normalizedLyrics);
+        const request: GenerateContentRequest & { tools?: Array<Record<string, unknown>> } = {
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: prompt }]
+            }
+          ],
+          generationConfig: {
+            responseMimeType: "application/json",
+          }
         };
+        const result = await this.model.generateContent(request);
+        const responseText = result.response?.text();
+
+        if (!responseText) {
+          return Err('AI không trả về kết quả phân tích.');
+        }
+
+        parsedData = this.parseAnalysisResponse(responseText);
       }
 
-      const result = await this.model.generateContent(request);
-      const responseText = result.response?.text();
-
-      if (!responseText) {
-        return Err('AI không trả về kết quả phân tích.');
+      if (!parsedData) {
+        return Err('Không tìm thấy lời bài hát từ các nguồn web sau nhiều lần thử. Vui lòng thử lại sau.');
       }
-
-      const parsedData = this.parseAnalysisResponse(responseText) as IAnalysisResult;
 
       if (!parsedData.vibe || !Array.isArray(parsedData.analysis)) {
         return Err('Kết quả phân tích từ AI không đúng cấu trúc yêu cầu.');
@@ -95,17 +129,28 @@ export class AIService {
     }
   }
 
-  private buildPrompt(title: string, artist: string, lyrics: string): string {
+  private buildPrompt(title: string, artist: string, lyrics: string, attempt = 1): string {
     if (lyrics.trim() === "") {
       return `
         Nhiệm vụ: Phân tích sâu sắc bài hát "${title}" của nghệ sĩ "${artist}".
         Bạn là một chuyên gia phê bình âm nhạc quốc tế, nhà ngôn ngữ học, nhà nghiên cứu văn hóa truyền thống Việt Nam đồng thời am hiểu văn hóa Gen Z và phân tích bài hát.
 
+        VÒNG TÌM KIẾM HIỆN TẠI: ${attempt}/${this.MAX_WEB_SEARCH_ATTEMPTS}
+
         BƯỚC 1 - TÌM VÀ ĐỌC TOÀN BỘ LỜI BÀI HÁT:
-        1. Sử dụng công cụ Google Search để tìm lời bài hát CHÍNH THỨC của bài "${title}" của nghệ sĩ "${artist}".
-        2. Tìm trên các nguồn uy tín: Zing Mp3, Nhaccuatui, Musixmatch hoặc các trang lời bài hát khác.
-        3. Sau khi tìm được link, sử dụng URL Context tool để đọc TOÀN BỘ lời bài hát từ trang web
-        4. QUAN TRỌNG: Phải sao chép CHÍNH XÁC toàn bộ lời bài hát từ nguồn, không được tự bịa hoặc thay đổi
+        1. Sử dụng Google Search với nhiều truy vấn biến thể:
+           - "${title} ${artist} lyrics"
+           - "${title} ${artist} lời bài hát"
+           - "${title}" "${artist}" "full lyrics"
+           - "${title}" "${artist}" site:musixmatch.com
+           - "${title}" "${artist}" site:genius.com
+           - "${title}" "${artist}" site:zingmp3.vn
+           - "${title}" "${artist}" site:nhaccuatui.com
+           - "${title}" "${artist}" site:spotify.com
+        2. Ưu tiên nguồn theo thứ tự: Musixmatch, Genius, Spotify, Zing MP3, NhacCuaTui, các trang lyrics uy tín khác.
+        3. Nếu nguồn đầu không đầy đủ, bắt buộc mở nguồn kế tiếp để đối chiếu cho đến khi có full lyrics.
+        4. Sau khi tìm được link, đọc TOÀN BỘ lời bài hát từ trang web.
+        5. QUAN TRỌNG: Phải sao chép CHÍNH XÁC toàn bộ lời bài hát từ nguồn, không được tự bịa hoặc thay đổi.
 
         BƯỚC 2 - PHÂN TÍCH SÂU SẮC LỜI BÀI HÁT:
         HƯỚNG DẪN PHÂN TÍCH THEO TỪNG THỂ LOẠI:

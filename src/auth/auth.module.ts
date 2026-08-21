@@ -9,7 +9,7 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { IAuthRepository } from './repositories/auth.repository';
 import { AuthRepositoryImpl } from './repositories/auth.repository.impl';
-import { AtStrategy } from './strategies/at.strategy';
+import { resolveJwtExpiresIn } from './utils/jwt-expiry.util';
 
 @Module({
   imports: [
@@ -18,14 +18,15 @@ import { AtStrategy } from './strategies/at.strategy';
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET')!,
         signOptions: {
-          expiresIn: parseInt(configService.get<string>('JWT_EXPIRES_IN')!),
+          expiresIn: resolveJwtExpiresIn(
+            configService.get<string>('JWT_EXPIRES_IN'),
+          ),
         },
       }),
     }),
   ],
   providers: [
     AuthService,
-    AtStrategy,
     JwtStrategy,
     {
       provide: IAuthRepository,

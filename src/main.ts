@@ -7,6 +7,7 @@ import * as cookieParser from 'cookie-parser';
 
 /* Application Package */
 import { AppModule } from './app.module';
+import { VALIDATION_PIPE_OPTIONS } from './shared/constants/validation';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -26,13 +27,7 @@ async function bootstrap() {
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   });
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
+  app.useGlobalPipes(new ValidationPipe(VALIDATION_PIPE_OPTIONS));
 
   const config = new DocumentBuilder()
     .setTitle('Analyrics API')

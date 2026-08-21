@@ -26,15 +26,16 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
-    "@nestjs/cli": "^11.0.0",
-    "@nestjs/schematics": "^11.0.0",
     "@google/generative-ai": "^0.24.1",
+    "@nestjs/cli": "^11.0.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/throttler": "^6.5.0",
     "@prisma/client": "^6.19.1",
     "@types/pg": "^8.16.0",
     "axios": "^1.13.2",

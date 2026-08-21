@@ -1,6 +1,8 @@
 /* System Package */
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import * as Joi from 'joi';
 
 /* Application Package */
@@ -13,6 +15,11 @@ import {
   DEFAULT_JWT_EXPIRES_IN,
   isUsableJwtExpiresIn,
 } from './auth/utils/jwt-expiry.util';
+import {
+  DEFAULT_THROTTLE_LIMIT,
+  DEFAULT_THROTTLE_TTL,
+  THROTTLE_ERROR_MESSAGE,
+} from './shared/constants/throttle';
 
 /**
  * Exported so the rules below are directly testable — an inline schema is
@@ -41,11 +48,23 @@ export const envValidationSchema = Joi.object({
       isGlobal: true,
       validationSchema: envValidationSchema,
     }),
+    // Baseline budget for every route. Individual handlers tighten it with
+    // @Throttle; the guard keys each budget per controller + handler + client,
+    // so routes do not share a bucket.
+    ThrottlerModule.forRoot({
+      throttlers: [
+        { limit: DEFAULT_THROTTLE_LIMIT, ttl: DEFAULT_THROTTLE_TTL },
+      ],
+      errorMessage: THROTTLE_ERROR_MESSAGE,
+    }),
     PrismaModule, 
     AuthModule,
     AnalysisModule
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}

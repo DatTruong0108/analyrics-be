@@ -1,7 +1,8 @@
 // /* System Package */
 import { Controller, Get, Query, Res, Body, HttpStatus, Post, UseGuards } from "@nestjs/common";
 import { Response } from "express";
-import { ApiQuery, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { ApiQuery, ApiOperation, ApiTags, ApiTooManyRequestsResponse } from "@nestjs/swagger";
+import { Throttle } from "@nestjs/throttler";
 import { Result, match } from "oxide.ts";
 
 // /* Application Package */
@@ -12,6 +13,11 @@ import { AnalysisWithSong } from "./repositories/analysis.repository.impl";
 import { AnalyzeSongDto } from "./analysis.dto";
 import { AtGuard } from "src/auth/guards/at.guard";
 import { GetCurrentUserId } from "src/shared/decorators/getCurrentUserId.decorator";
+import {
+  ANALYZE_THROTTLE_LIMIT,
+  ANALYZE_THROTTLE_TTL,
+  THROTTLE_ERROR_MESSAGE,
+} from "src/shared/constants/throttle";
 
 @ApiTags('Analysis')
 @Controller('analysis')
@@ -49,9 +55,15 @@ export class AnalysisController {
     });
   }
 
+  // Far stricter than the app-wide default: a cache miss here calls Gemini and
+  // LrcLib/Deezer, so every request past the cache costs money and quota.
+  @Throttle({
+    default: { limit: ANALYZE_THROTTLE_LIMIT, ttl: ANALYZE_THROTTLE_TTL },
+  })
   @UseGuards(AtGuard)
   @Post('analyze')
   @ApiOperation({ summary: 'Phân tích chi tiết lời bài hát bằng AI' })
+  @ApiTooManyRequestsResponse({ description: THROTTLE_ERROR_MESSAGE })
   async analyze(
     @GetCurrentUserId() userId: string | null,
     @Body() songMetadata: AnalyzeSongDto,

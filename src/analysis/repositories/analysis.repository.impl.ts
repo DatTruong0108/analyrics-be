@@ -46,9 +46,9 @@ export class AnalysisRepositoryImpl implements IAnalysisRepository {
     } catch { return Err('Lỗi truy vấn cơ sở dữ liệu.'); }
   }
 
-  async saveAnalysis(userId: string | null, song: ISongMetadata, analysis: IAnalysisResult): Promise<Result<void, string>> {
+  async saveAnalysis(userId: string | null, song: ISongMetadata, analysis: IAnalysisResult): Promise<Result<string, string>> {
     try {
-      await this.prismaService.$transaction(async (tx) => {
+      const analysisId = await this.prismaService.$transaction(async (tx) => {
         // 1. Lưu hoặc cập nhật thông tin bài hát (Metadata)
         await tx.song.upsert({
           where: { id: song.id },
@@ -115,9 +115,11 @@ export class AnalysisRepositoryImpl implements IAnalysisRepository {
             },
           });
         }
+
+        return analysisRecord.id;
       });
 
-      return Ok(undefined);
+      return Ok(analysisId);
     } catch (error) {
       console.error('Save Analysis Transaction Error:', error);
       return Err('Lỗi khi lưu trữ dữ liệu vào hệ thống.');

@@ -9,7 +9,7 @@ import { IAnalysisRepository } from "./analysis.repository";
 import { IAnalysisResult, ISongMetadata, IAnalysisSection, IMetaphor, ITrendingSongs } from "../interfaces/analysis.interface";
 import { PrismaService } from "src/prisma/prisma.service";
 
-export type AnalysisWithSong = IAnalysisResult & { song: ISongMetadata };
+export type AnalysisWithSong = IAnalysisResult & { id: string; song: ISongMetadata };
 
 @Injectable()
 export class AnalysisRepositoryImpl implements IAnalysisRepository {
@@ -23,6 +23,7 @@ export class AnalysisRepositoryImpl implements IAnalysisRepository {
       });
       if (!record) return Ok(null);
       const formattedResult: AnalysisWithSong = {
+        id: record.id,
         fullLyrics: record.fullLyrics,
         syncedLyrics: record.syncedLyrics,
         vibe: record.vibe,
@@ -99,7 +100,8 @@ export class AnalysisRepositoryImpl implements IAnalysisRepository {
         });
 
         // 3. Ghi vết vào lịch sử cá nhân (UserHistory)
-        // Dùng upsert để nếu người dùng xem lại bài này, thời gian createdAt sẽ được cập nhật mới nhất
+        // updatedAt là mốc "xem lần cuối" và là cột dùng để sắp xếp lịch sử;
+        // createdAt giữ nguyên mốc "xem lần đầu".
         if (userId) {
           await tx.userHistory.upsert({
             where: {
@@ -135,7 +137,9 @@ export class AnalysisRepositoryImpl implements IAnalysisRepository {
             analysisId,
           },
         },
-        update: { createdAt: new Date() }, // Đưa bài hát lên đầu danh sách
+        // Đưa bài hát lên đầu danh sách: cập nhật mốc "xem lần cuối",
+        // giữ nguyên createdAt là mốc "xem lần đầu".
+        update: { updatedAt: new Date() },
         create: {
           userId,
           analysisId,
@@ -183,7 +187,9 @@ export class AnalysisRepositoryImpl implements IAnalysisRepository {
           where: { userId },
           take: limit,
           skip: offset,
-          orderBy: { createdAt: 'desc' },
+          // Lịch sử sắp xếp theo lần xem gần nhất (updatedAt), không phải lần xem đầu.
+          // Thêm id làm tiêu chí phụ để phân trang ổn định khi trùng timestamp.
+          orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
           include: {
             analysis: {
               include: { song: true }

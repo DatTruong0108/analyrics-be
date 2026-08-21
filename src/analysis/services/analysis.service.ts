@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* System Package */
 import { Injectable } from "@nestjs/common";
 import { Result, Ok, Err } from "oxide.ts";
@@ -69,8 +66,7 @@ export class AnalysisService {
         const cachedData = existingRes.unwrap();
         if (cachedData) {
           if (userId) {
-            const analysisId = (cachedData as any).id;
-            await this.repository.recordUserHistory(userId, analysisId);
+            await this.repository.recordUserHistory(userId, cachedData.id);
           }
           // Trả về kèm flag fromCache: true
           return Ok({ ...cachedData, fromCache: true });
@@ -173,15 +169,17 @@ export class AnalysisService {
       // 4. Lưu cả thông tin bài hát và bản phân tích vào Database (Transaction)
       const saveRes = await this.repository.saveAnalysis(userId, songDto, analysisData);
       if (saveRes.isErr()) return Err(saveRes.unwrapErr());
+      const analysisId = saveRes.unwrap();
 
       // 5. Trả về kết quả hoàn chỉnh
       return Ok({
         payload: {
           ...analysisData,
+          id: analysisId,
           song: songDto,
           fromCache: false
         },
-        analysisId: saveRes.unwrap()
+        analysisId
       });
 
     } catch (error: unknown) {

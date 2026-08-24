@@ -9,6 +9,8 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { IAuthRepository } from './repositories/auth.repository';
 import { AuthRepositoryImpl } from './repositories/auth.repository.impl';
+import { IRefreshTokenRepository } from './repositories/refresh-token.repository';
+import { RefreshTokenRepositoryImpl } from './repositories/refresh-token.repository.impl';
 import { resolveJwtExpiresIn } from './utils/jwt-expiry.util';
 
 @Module({
@@ -31,6 +33,10 @@ import { resolveJwtExpiresIn } from './utils/jwt-expiry.util';
     {
       provide: IAuthRepository,
       useClass: AuthRepositoryImpl,
+    },
+    {
+      provide: IRefreshTokenRepository,
+      useClass: RefreshTokenRepositoryImpl,
     },
   ],
   controllers: [AuthController]

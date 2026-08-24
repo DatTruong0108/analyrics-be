@@ -1,19 +1,33 @@
 /* System Package */
-import { Controller, Post, Body, Res, HttpStatus } from '@nestjs/common';
-import { Response } from 'express';
+import { Controller, Post, Body, Res, Req, HttpStatus } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Request, Response } from 'express';
 import { ApiBadRequestResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Result, match } from 'oxide.ts';
 
 /* Application Package */
 import { AuthService } from './auth.service';
 import { UserResponse, LoginDto, RegisterDto, UserData } from './auth.dto';
-import { IUser, ILoginResult } from './interfaces/auth.interface';
+import { IUser, IAuthSession } from './interfaces/auth.interface';
 import { BaseResponse } from 'src/shared/constants/baseResponse';
+import {
+  REFRESH_COOKIE,
+  clearAuthCookies,
+  setAuthCookies,
+} from './utils/auth-cookies.util';
+
+/** Narrows the `any`-typed bag cookie-parser attaches to the request. */
+interface RequestWithCookies extends Request {
+  cookies: Record<string, string | undefined>;
+}
 
 @Controller('/auth')
 @ApiTags('Auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) { }
 
   private mapToUserData(user: IUser): UserData {
     return {
@@ -23,6 +37,10 @@ export class AuthController {
       role: user.role,
       created_at: user.createdAt,
     };
+  }
+
+  private get isProd(): boolean {
+    return this.configService.get<string>('NODE_ENV') === 'production';
   }
 
   @Post('login')
@@ -41,30 +59,23 @@ export class AuthController {
     @Body() dto: LoginDto,
     @Res() res: Response
   ): Promise<void> {
-    const result: Result<ILoginResult, string> = await this.authService.login(dto);
+    const result: Result<IAuthSession, string> = await this.authService.login(dto);
 
-    // 2. Sử dụng hàm match (standalone function) thay vì method
     return match(result, {
-      // 3. Destructure đúng ILoginResult: { user, accessToken }
-      Ok: ({ user, accessToken }: ILoginResult) => {
-        res.cookie('access_token', accessToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          maxAge: 7 * 24 * 60 * 60 * 1000,
-        });
+      Ok: (session: IAuthSession) => {
+        // Both cookies, one source of truth for their attributes — the refresh
+        // cookie is scoped to /api/auth, the access cookie site-wide.
+        setAuthCookies(res, session, this.isProd);
 
         const response: UserResponse = {
           statusCode: HttpStatus.OK,
           message: 'Đăng nhập thành công',
-          // Lúc này user đã có kiểu IUser, không còn là 'any'
-          data: this.mapToUserData(user),
+          data: this.mapToUserData(session.user),
         };
 
         res.status(HttpStatus.OK).json(response);
       },
 
-      // 4. Khai báo kiểu string cho err để xóa lỗi "Unsafe assignment"
       Err: (err: string) => {
         const isSystem = err.includes('Hệ thống');
         const status = isSystem ? HttpStatus.INTERNAL_SERVER_ERROR : HttpStatus.BAD_REQUEST;
@@ -82,16 +93,18 @@ export class AuthController {
     @Body() dto: RegisterDto,
     @Res() res: Response,
   ): Promise<void> {
-    // Gọi service và nhận kết quả dạng Result
-    const result: Result<IUser, string> = await this.authService.register(dto);
+    const result: Result<IAuthSession, string> = await this.authService.register(dto);
 
-    // Sử dụng match để xử lý tường minh 2 trường hợp thành công và thất bại
     return match(result, {
-      Ok: (user: IUser) => {
+      Ok: (session: IAuthSession) => {
+        // Register signs the user in, so it sets the same cookies login does.
+        // The response body contract is unchanged.
+        setAuthCookies(res, session, this.isProd);
+
         const response: UserResponse = {
           statusCode: HttpStatus.CREATED,
           message: 'Đăng ký tài khoản thành công',
-          data: this.mapToUserData(user),
+          data: this.mapToUserData(session.user),
         };
 
         res.status(HttpStatus.CREATED).json(response);
@@ -110,17 +123,19 @@ export class AuthController {
   }
 
   @Post('logout')
-  async logout(@Res() res: Response): Promise<void> {
-    const result: Result<boolean, string> = await this.authService.logout();
+  async logout(
+    @Req() req: RequestWithCookies,
+    @Res() res: Response,
+  ): Promise<void> {
+    const result: Result<boolean, string> = await this.authService.logout(
+      req.cookies?.[REFRESH_COOKIE],
+    );
 
     return match(result, {
       Ok: () => {
-        res.clearCookie('access_token', {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          path: '/',
-        });
+        // Mirrors setAuthCookies attribute for attribute, which is what makes
+        // the deletion actually take effect for the /api/auth-scoped cookie.
+        clearAuthCookies(res, this.isProd);
 
         const response: BaseResponse = {
           statusCode: HttpStatus.OK,

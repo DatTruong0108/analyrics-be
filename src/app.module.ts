@@ -40,6 +40,19 @@ export const envValidationSchema = Joi.object({
   NODE_ENV: Joi.string()
     .valid('development', 'production', 'test')
     .default('development'),
+  /*
+   * Both are required, not just whichever one matches NODE_ENV: main.ts picks
+   * between them and passes the result straight into
+   * `enableCors({ origin: [frontendUrl] })`. An unset value makes that
+   * `[undefined]`, which rejects every credentialed preflight — a failure that
+   * surfaces to users as "login is broken", a long way from its real cause.
+   *
+   * The scheme is pinned because a bare `localhost:3000` satisfies Joi's
+   * default `uri()` — it parses as scheme `localhost` — and would sail through
+   * validation only to produce an origin no browser will ever match.
+   */
+  FE_URL: Joi.string().uri({ scheme: ['http', 'https'] }).required(),
+  FE_URL_PROD: Joi.string().uri({ scheme: ['http', 'https'] }).required(),
 });
 
 @Module({

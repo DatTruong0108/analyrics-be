@@ -35,6 +35,15 @@ async function bootstrap() {
     origin: [frontendUrl],
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    /*
+     * `X-Token-Expired` is a custom response header, so it is invisible to
+     * cross-origin JS unless it is named here: the fetch spec exposes only
+     * the CORS-safelisted response headers by default. Without this the
+     * frontend cannot tell "access token expired, refresh it" apart from
+     * "genuinely a guest", and would silently treat every logged-in user as
+     * anonymous once their token ages out.
+     */
+    exposedHeaders: ['X-Token-Expired'],
   });
 
   app.useGlobalPipes(new ValidationPipe(VALIDATION_PIPE_OPTIONS));

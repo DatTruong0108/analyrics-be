@@ -37,6 +37,17 @@ describe('parseDurationToMs', () => {
     expect(parseDurationToMs('1.5h')).toBe(5_400_000);
   });
 
+  /*
+   * `JWT_EXPIRES_IN_PATTERN` permits a fractional amount ('1.5h'), and the
+   * result lands in a cookie's `maxAge` — which serialises to `Max-Age`, an
+   * integer per RFC 6265. A fractional millisecond would emit `Max-Age=1.5`
+   * and be discarded by the browser as malformed.
+   */
+  it('always returns a whole number of milliseconds', () => {
+    expect(parseDurationToMs('1.5ms')).toBe(2);
+    expect(Number.isInteger(parseDurationToMs('1.5h'))).toBe(true);
+  });
+
   // Callers are expected to have run `isUsableJwtExpiresIn` first, so an
   // unparsable value is a programming error, not a value to paper over with a
   // silent 0 — a 0 would become `maxAge: 0`, i.e. a cookie deleted on arrival.

@@ -133,7 +133,10 @@ export function parseDurationToMs(raw: string | undefined): number {
   const unit = match[2]?.toLowerCase();
 
   // No unit means seconds, per `jsonwebtoken`'s reading of a bare number.
-  if (!unit) return amount * 1_000;
+  // Rounded because the pattern permits a fractional amount ('1.5ms'), and
+  // the result feeds cookie `maxAge` — `Max-Age` is an integer per RFC 6265,
+  // so a fraction would serialise to a value browsers discard as malformed.
+  if (!unit) return Math.round(amount * 1_000);
 
-  return amount * UNIT_TO_MS[unit];
+  return Math.round(amount * UNIT_TO_MS[unit]);
 }

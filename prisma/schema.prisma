@@ -57,6 +57,8 @@ model Analysis {
   userHistories UserHistory[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([createdAt])
 }
 
 model UserHistory {
@@ -70,6 +72,7 @@ model UserHistory {
   analysis   Analysis @relation(fields: [analysisId], references: [id])
 
   @@unique([userId, analysisId])
+  @@index([userId, updatedAt])
 }
 
 model Favorite {

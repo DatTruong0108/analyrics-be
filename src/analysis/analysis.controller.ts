@@ -1,7 +1,8 @@
 // /* System Package */
 import { Controller, Get, Query, Res, Body, HttpStatus, Post, UseGuards } from "@nestjs/common";
 import { Response } from "express";
-import { ApiQuery, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { ApiOperation, ApiTags, ApiTooManyRequestsResponse } from "@nestjs/swagger";
+import { Throttle } from "@nestjs/throttler";
 import { Result, match } from "oxide.ts";
 
 // /* Application Package */
@@ -9,9 +10,14 @@ import { AnalysisService } from "./services/analysis.service";
 import { ISongMetadata } from "./interfaces/analysis.interface";
 import { IPaginatedResult } from "src/shared/constants/paginatedResult";
 import { AnalysisWithSong } from "./repositories/analysis.repository.impl";
-import { AnalyzeSongDto } from "./analysis.dto";
+import { AnalyzeSongDto, SearchSongsQueryDto, TrendingQueryDto } from "./analysis.dto";
 import { AtGuard } from "src/auth/guards/at.guard";
 import { GetCurrentUserId } from "src/shared/decorators/getCurrentUserId.decorator";
+import {
+  ANALYZE_THROTTLE_LIMIT,
+  ANALYZE_THROTTLE_TTL,
+  THROTTLE_ERROR_MESSAGE,
+} from "src/shared/constants/throttle";
 
 @ApiTags('Analysis')
 @Controller('analysis')
@@ -20,17 +26,12 @@ export class AnalysisController {
 
   @Get('search')
   @ApiOperation({ summary: 'Tìm kiếm bài hát từ Spotify (Phân trang)' })
-  @ApiQuery({ name: 'q', description: 'Từ khóa tìm kiếm' })
-  @ApiQuery({ name: 'page', required: false, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, example: 10 })
   async search(
-    @Query('q') q: string,
-    @Query('page') page: string = '1',
-    @Query('limit') limit: string = '10',
+    @Query() query: SearchSongsQueryDto,
     @Res() res: Response,
   ): Promise<void> {
     const result: Result<IPaginatedResult<ISongMetadata>, string> =
-      await this.analysisService.searchSongs(q, +page, +limit);
+      await this.analysisService.searchSongs(query.q, query.page, query.limit);
 
     return match(result, {
       Ok: (paginatedData: IPaginatedResult<ISongMetadata>) => {
@@ -49,9 +50,15 @@ export class AnalysisController {
     });
   }
 
+  // Far stricter than the app-wide default: a cache miss here calls Gemini and
+  // LrcLib/Deezer, so every request past the cache costs money and quota.
+  @Throttle({
+    default: { limit: ANALYZE_THROTTLE_LIMIT, ttl: ANALYZE_THROTTLE_TTL },
+  })
   @UseGuards(AtGuard)
   @Post('analyze')
   @ApiOperation({ summary: 'Phân tích chi tiết lời bài hát bằng AI' })
+  @ApiTooManyRequestsResponse({ description: THROTTLE_ERROR_MESSAGE })
   async analyze(
     @GetCurrentUserId() userId: string | null,
     @Body() songMetadata: AnalyzeSongDto,
@@ -83,14 +90,11 @@ export class AnalysisController {
 
   @Get('trending')
   @ApiOperation({ summary: 'Lấy danh sách các bài hát được phân tích nhiều (Trending)' })
-  @ApiQuery({ name: 'limit', required: false, example: 10 })
-  @ApiQuery({ name: 'offset', required: false, example: 0 })
   async getTrending(
-    @Query('limit') limit: string = '10',
-    @Query('offset') offset: string = '0',
+    @Query() query: TrendingQueryDto,
     @Res() res: Response,
   ): Promise<void> {
-    const result = await this.analysisService.getTrending(+limit, +offset);
+    const result = await this.analysisService.getTrending(query.limit, query.offset);
 
     return match(result, {
       Ok: (data) => {

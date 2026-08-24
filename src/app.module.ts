@@ -1,5 +1,5 @@
 /* System Package */
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
@@ -16,6 +16,7 @@ import {
   parseDurationToMs,
   isUsableJwtExpiresIn,
 } from './auth/utils/jwt-expiry.util';
+import { OriginCheckMiddleware } from './shared/middleware/origin-check.middleware';
 import {
   DEFAULT_THROTTLE_LIMIT,
   DEFAULT_THROTTLE_TTL,
@@ -128,4 +129,21 @@ export const envValidationSchema = Joi.object({
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  /*
+   * Applied to every route, not just /auth. The CSRF exposure that
+   * `SameSite=None` opens up is worst on `/api/analysis/analyze` — an attacker
+   * page can spend the victim's Gemini quota there — so scoping this to the
+   * auth routes would leave the expensive endpoint unguarded.
+   */
+  configure(consumer: MiddlewareConsumer): void {
+    /*
+     * '{*path}' not '*': Express 5 moved to path-to-regexp v8, which rejects a
+     * bare asterisk and requires a named wildcard. Nest auto-converts '*' but
+     * logs a deprecation warning while doing it, so spell it correctly here.
+     * The braces make the segment optional, so this still matches '/api'
+     * itself and not only '/api/something'.
+     */
+    consumer.apply(OriginCheckMiddleware).forRoutes('{*path}');
+  }
+}

@@ -48,6 +48,16 @@ export interface IAuthSession {
  * message text.
  */
 export interface IRefreshFailure {
+  /**
+   * What went wrong, at the granularity the transport actually needs.
+   *
+   * `clearCookies` and `retryable` alone cannot separate "lost a rotation race"
+   * from "the database is down" — both are retryable and both must leave
+   * cookies intact — yet one is a 401 about the token and the other is a 500
+   * about the server. Conflating them would bury infrastructure failures in the
+   * 401 count and make them invisible in monitoring.
+   */
+  kind: 'INVALID' | 'RACE' | 'SYSTEM';
   message: string;
   clearCookies: boolean;
   retryable: boolean;

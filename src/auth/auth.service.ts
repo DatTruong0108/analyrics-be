@@ -185,9 +185,22 @@ export class AuthService {
     presentedToken: string | undefined,
   ): Promise<Result<IAuthSession, IRefreshFailure>> {
     const reject = (message: string): IRefreshFailure => ({
+      kind: 'INVALID',
       message,
       clearCookies: true,
       retryable: false,
+    });
+
+    /*
+     * Infrastructure trouble, not a verdict on the token. Cookies stay put: a
+     * failed query is no evidence the session is bad, and destroying it would
+     * turn a transient blip into a mass logout.
+     */
+    const systemFailure = (message: string): IRefreshFailure => ({
+      kind: 'SYSTEM',
+      message,
+      clearCookies: false,
+      retryable: true,
     });
 
     if (!presentedToken) {
@@ -205,15 +218,7 @@ export class AuthService {
       newExpiresAt: new Date(now.getTime() + this.refreshTtlMs()),
       now,
     });
-    if (claim.isErr()) {
-      return Err({
-        message: claim.unwrapErr(),
-        // A database failure is not evidence about the token, so do not punish
-        // the user by destroying a session that may well be valid.
-        clearCookies: false,
-        retryable: true,
-      });
-    }
+    if (claim.isErr()) return Err(systemFailure(claim.unwrapErr()));
 
     const outcome = claim.unwrap();
 
@@ -225,13 +230,7 @@ export class AuthService {
        * token that carried it.
        */
       const userRes = await this.authRepository.findById(outcome.parent.userId);
-      if (userRes.isErr()) {
-        return Err({
-          message: userRes.unwrapErr(),
-          clearCookies: false,
-          retryable: true,
-        });
-      }
+      if (userRes.isErr()) return Err(systemFailure(userRes.unwrapErr()));
 
       const user = userRes.unwrap();
       if (!user) {
@@ -254,13 +253,7 @@ export class AuthService {
 
     // The claim lost. Work out why, and only now decide about cookies.
     const rowRes = await this.refreshTokenRepository.findByHash(tokenHash);
-    if (rowRes.isErr()) {
-      return Err({
-        message: rowRes.unwrapErr(),
-        clearCookies: false,
-        retryable: true,
-      });
-    }
+    if (rowRes.isErr()) return Err(systemFailure(rowRes.unwrapErr()));
 
     const row = rowRes.unwrap();
     const decision = decideRefresh(row, now);
@@ -296,6 +289,7 @@ export class AuthService {
       );
 
       return Err({
+        kind: 'RACE',
         message: 'Phiên đang được làm mới, vui lòng thử lại.',
         clearCookies: false,
         retryable: true,
@@ -322,6 +316,7 @@ export class AuthService {
     }
 
     return Err({
+      kind: 'INVALID',
       message: this.INVALID_SESSION,
       clearCookies: decision.clearCookies,
       retryable: decision.retryable,
@@ -341,6 +336,18 @@ export class AuthService {
    * returns `Ok`, so a corrupted session is always escapable rather than
    * trapping the user on a 500.
    */
+  /**
+   * Reads a user by id for `/auth/me`.
+   *
+   * The access token carries only `sub`, `email`, `role` and `exp`; `name` and
+   * `createdAt` are not in it, so the profile payload has to come from the row
+   * rather than from claims. That also means /auth/me reflects a rename or a
+   * role change immediately instead of at the next rotation.
+   */
+  async getProfile(userId: string): Promise<Result<IUser | null, string>> {
+    return this.authRepository.findById(userId);
+  }
+
   async logout(presentedToken: string | undefined): Promise<Result<boolean, string>> {
     try {
       if (!presentedToken) return Ok(true);

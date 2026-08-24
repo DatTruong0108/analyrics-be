@@ -39,6 +39,9 @@ import { resolveJwtExpiresIn } from './utils/jwt-expiry.util';
       useClass: RefreshTokenRepositoryImpl,
     },
   ],
-  controllers: [AuthController]
+  controllers: [AuthController],
+  // Exported so other feature modules can depend on auth without re-declaring
+  // its repositories — AnalysisModule already consumes AtGuard/JwtStrategy.
+  exports: [AuthService],
 })
 export class AuthModule { }

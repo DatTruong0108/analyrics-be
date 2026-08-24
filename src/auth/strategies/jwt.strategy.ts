@@ -42,6 +42,9 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       userId: payload.sub,
       email: payload.email,
       role: payload.role,
+      // Passed through so /auth/me can report the access token's expiry without
+      // the controller having to re-read and decode the cookie itself.
+      exp: payload.exp,
     };
   }
 }

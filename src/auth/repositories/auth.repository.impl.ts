@@ -24,6 +24,15 @@ export class AuthRepositoryImpl implements IAuthRepository {
     }
   }
 
+  async findById(id: string): Promise<Result<IUser | null, string>> {
+    try {
+      const user = await this.prisma.user.findUnique({ where: { id } });
+      return Ok(user as IUser | null);
+    } catch (error) {
+      return Err(this.SYSTEM_ERROR);
+    }
+  }
+
   async createUser(data: RegisterDto, hashedPassword: string): Promise<Result<IUser, string>> {
     try {
       const user = await this.prisma.user.create({

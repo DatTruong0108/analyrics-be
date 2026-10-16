@@ -23,6 +23,7 @@ model User {
   role      Role     @default(USER)
   favorites Favorite[]
   history   UserHistory[]
+  refreshTokens RefreshToken[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -83,6 +84,42 @@ model Favorite {
   song    Song   @relation(fields: [songId], references: [id])
 
   @@unique([userId, songId])
+}
+
+model RefreshToken {
+  id            String        @id @default(uuid())
+  userId        String
+  // sha256, not bcrypt — deliberately, do not "upgrade" this.
+  //
+  // Every refresh looks this value up by equality, so the column has to be
+  // indexable. bcrypt salts per row, which makes equality lookup impossible:
+  // you would have to load every live token for the user and compare one by
+  // one. bcrypt's cost only buys something against guessable secrets, and this
+  // is not one — it is 256 bits of `randomBytes`, so there is no dictionary an
+  // attacker could be slowed down through.
+  //
+  // Collision risk is ~10^-58, but still catch `P2002` on insert and map it to
+  // a system error. Never retry in a loop: a real duplicate means the RNG is
+  // broken, and retrying would hide that.
+  tokenHash     String        @unique @db.Char(64)
+  familyId      String
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  revokedReason RevokeReason? // see B5 — distinguishes a rotation from a reuse
+  graceUsedAt   DateTime?     // see B5 — at most one replay inside the grace window
+  createdAt     DateTime      @default(now())
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([familyId])
+  @@index([expiresAt])
+}
+
+enum RevokeReason {
+  ROTATED
+  REUSE
+  LOGOUT
 }
 
 enum Role {

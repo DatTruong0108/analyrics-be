@@ -129,7 +129,13 @@ export class RefreshTokenRepositoryImpl implements IRefreshTokenRepository {
         },
         {
           isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
-          maxWait: 2_000,
+          /*
+           * Matches Prisma's default for plain queries. Neon suspends after
+           * ~5 min idle, and the first request after that waits for compute to
+           * wake plus a fresh TLS/SCRAM connection — routinely past 2s, which
+           * failed the refresh (P2028) before a single statement ran.
+           */
+          maxWait: 10_000,
           timeout: 5_000,
         },
       );

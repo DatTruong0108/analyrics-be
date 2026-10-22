@@ -26,7 +26,7 @@ Two notes on the env work:
 - The scheme is pinned to `http`/`https`. Joi's bare `uri()` **accepts**
   `localhost:3000` (it parses as scheme `localhost`), which would pass startup
   and then produce a CORS origin no browser ever matches.
-- The real deployed frontend is **`https://analyrics-nine.vercel.app`**, not
+- The real deployed frontend is **`https://analyrics-tora.vercel.app`**, not
   `analyrics-fe.vercel.app` as first assumed. Still a `vercel.app` subdomain, so
   every cross-site conclusion below is unchanged.
 
@@ -66,7 +66,7 @@ to everything they can do today.
    129-131 anticipates this and prescribes a separate helper.
 3. **Production sign-in cannot work today.** `auth.controller.ts:52-54` sets the
    cookie `sameSite: 'lax'`. `vercel.app` and `onrender.com` are both entries on
-   the Public Suffix List, so `analyrics-nine.vercel.app` ↔
+   the Public Suffix List, so `analyrics-tora.vercel.app` ↔
    `analyrics-be.onrender.com` is **cross-site**. A `SameSite=Lax` cookie is
    stored but **never sent** on a cross-site `fetch`, even with
    `credentials: 'include'`.
@@ -726,7 +726,7 @@ re-running 1–3 to confirm the real values still work.
 10. **Keyboard-only modal** → Tab cycles inside, Escape closes, focus returns to
     the trigger.
 11. **Production smoke, after deploy** → sign in on the real domain pair
-    (`analyrics-nine.vercel.app` ↔ `analyrics-be.onrender.com`) and confirm the
+    (`analyrics-tora.vercel.app` ↔ `analyrics-be.onrender.com`) and confirm the
     cookie is actually *sent* on a subsequent request. This is the one failure that
     cannot reproduce locally (§1.3).
 

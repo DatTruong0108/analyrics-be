@@ -3,6 +3,7 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
 import { Result, Ok, Err } from "oxide.ts";
+import { Prisma } from "@prisma/client";
 
 /* Application Package */ 
 import { IAuthRepository } from "./auth.repository";
@@ -45,6 +46,22 @@ export class AuthRepositoryImpl implements IAuthRepository {
       return Ok(user as IUser);
     } catch (error) {
       return Err('Không thể tạo tài khoản. ' + this.SYSTEM_ERROR);
+    }
+  }
+
+  async updateName(id: string, name: string): Promise<Result<IUser | null, string>> {
+    try {
+      const user = await this.prisma.user.update({ where: { id }, data: { name } });
+      return Ok(user as IUser);
+    } catch (error) {
+      // P2025: the row to update does not exist — a deleted user, not a fault.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        return Ok(null);
+      }
+      return Err('Không thể cập nhật tên. ' + this.SYSTEM_ERROR);
     }
   }
 }

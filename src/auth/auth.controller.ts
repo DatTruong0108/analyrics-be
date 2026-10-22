@@ -3,6 +3,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   Res,
   Req,
@@ -18,6 +19,7 @@ import {
   ApiBearerAuth,
   ApiCookieAuth,
   ApiCreatedResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -36,7 +38,9 @@ import {
   MeResponse,
   RefreshFailureResponse,
   RegisterDto,
+  UpdateProfileDto,
   UserData,
+  UserResponse,
 } from './auth.dto';
 import {
   IAuthSession,
@@ -55,6 +59,8 @@ import {
 import {
   LOGIN_THROTTLE_LIMIT,
   LOGIN_THROTTLE_TTL,
+  PROFILE_UPDATE_THROTTLE_LIMIT,
+  PROFILE_UPDATE_THROTTLE_TTL,
   REFRESH_THROTTLE_LIMIT,
   REFRESH_THROTTLE_TTL,
   THROTTLE_ERROR_MESSAGE,
@@ -361,5 +367,75 @@ export class AuthController {
     };
 
     res.status(HttpStatus.OK).json(response);
+  }
+
+  @Throttle({
+    default: {
+      limit: PROFILE_UPDATE_THROTTLE_LIMIT,
+      ttl: PROFILE_UPDATE_THROTTLE_TTL,
+    },
+  })
+  @UseGuards(AtGuard)
+  @Patch('me')
+  @ApiCookieAuth()
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Cập nhật tên hiển thị',
+    description:
+      'Đổi tên của người dùng đang đăng nhập. Tên được trim và tối đa 50 ký tự.',
+  })
+  @ApiOkResponse({ description: 'Cập nhật thành công', type: UserResponse })
+  @ApiBadRequestResponse({ description: 'Tên rỗng hoặc quá dài' })
+  @ApiUnauthorizedResponse({ description: 'Chưa đăng nhập hoặc phiên đã hết hạn' })
+  @ApiNotFoundResponse({ description: 'Tài khoản không còn tồn tại' })
+  @ApiTooManyRequestsResponse({ description: THROTTLE_ERROR_MESSAGE })
+  async updateMe(
+    @GetCurrentUser() authUser: IAuthUser | null,
+    @Body() dto: UpdateProfileDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    try {
+      // AtGuard lets guests through, so the sign-in requirement is enforced here.
+      if (!authUser) {
+        res.status(HttpStatus.UNAUTHORIZED).json({
+          statusCode: HttpStatus.UNAUTHORIZED,
+          message: 'Bạn cần đăng nhập để thực hiện thao tác này.',
+        });
+        return;
+      }
+
+      const result = await this.authService.updateName(authUser.userId, dto.name);
+
+      if (result.isErr()) {
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          message: result.unwrapErr(),
+        });
+        return;
+      }
+
+      const user = result.unwrap();
+
+      if (!user) {
+        res.status(HttpStatus.NOT_FOUND).json({
+          statusCode: HttpStatus.NOT_FOUND,
+          message: 'Tài khoản không còn tồn tại.',
+        });
+        return;
+      }
+
+      const response: UserResponse = {
+        statusCode: HttpStatus.OK,
+        message: 'Cập nhật tên thành công',
+        data: this.mapToUserData(user),
+      };
+
+      res.status(HttpStatus.OK).json(response);
+    } catch {
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Hệ thống bị lỗi, vui lòng thử lại sau.',
+      });
+    }
   }
 }

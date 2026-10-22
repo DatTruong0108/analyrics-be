@@ -15,4 +15,6 @@ export abstract class IAuthRepository {
    * keep being re-minted for as long as the family stays alive.
    */
   abstract findById(id: string): Promise<Result<IUser | null, string>>;
+  /** Resolves to null when no row has this id, rather than an error. */
+  abstract updateName(id: string, name: string): Promise<Result<IUser | null, string>>;
 }

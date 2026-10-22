@@ -15,6 +15,7 @@ import { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import {
   ApiBadRequestResponse,
+  ApiBearerAuth,
   ApiCookieAuth,
   ApiCreatedResponse,
   ApiOkResponse,
@@ -299,6 +300,7 @@ export class AuthController {
   @UseGuards(AtGuard)
   @Get('me')
   @ApiCookieAuth()
+  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Thông tin phiên hiện tại',
     description:

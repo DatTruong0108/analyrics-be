@@ -3,6 +3,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Result, Ok, Err } from "oxide.ts";
 import {
+  ErrorDetails,
   FinishReason,
   GenerateContentRequest,
   GenerateContentResult,
@@ -15,6 +16,14 @@ import {
 /* Application Package */
 import { IAnalysisResult } from "../interfaces/analysis.interface";
 import { cleanSongTitle, extractArtistNames } from "../utils/song-key.util";
+import {
+  AIModelId,
+  AIModelQuotaTracker,
+  ALL_AI_MODELS,
+  ANALYSIS_MODELS,
+  SEARCH_MODELS,
+  resolveQuotaCooldownUntil,
+} from "../utils/ai-model-pool.util";
 
 /**
  * SDK @google/generative-ai@0.24 chưa khai báo tool "googleSearch" của Gemini 2.x
@@ -27,6 +36,14 @@ interface IGenerativeAIError {
   status?: number;
   statusText?: string;
   message?: string;
+  errorDetails?: ErrorDetails[];
+}
+
+/* Every model in the list is cooling down after a 429; never fall back to billed usage */
+class AIQuotaExhaustedError extends Error {
+  constructor() {
+    super("All free-tier Gemini models have hit their quota.");
+  }
 }
 
 /* fullLyrics/syncedLyrics do backend tự gán, không để AI sinh lại */
@@ -43,7 +60,8 @@ export class AIService {
   private readonly MAX_ANALYSIS_ATTEMPTS = 2;
   private readonly MIN_LYRICS_LENGTH = 80;
   private readonly hasApiKey: boolean;
-  private readonly model: GenerativeModel;
+  private readonly models: Map<AIModelId, GenerativeModel>;
+  private readonly quotaTracker = new AIModelQuotaTracker();
 
   /**
    * responseSchema buộc Gemini trả JSON đúng cấu trúc ở tầng API, nhờ vậy prompt
@@ -110,9 +128,8 @@ export class AIService {
       this.logger.error("Thiếu biến môi trường AI_API_KEY, mọi yêu cầu phân tích sẽ thất bại.");
     }
 
-    this.model = new GoogleGenerativeAI(apiKey).getGenerativeModel({
-      model: "gemini-2.5-flash",
-    });
+    const client = new GoogleGenerativeAI(apiKey);
+    this.models = new Map(ALL_AI_MODELS.map((modelId) => [modelId, client.getGenerativeModel({ model: modelId })]));
   }
 
   async analyzeLyrics(title: string, artist: string, lyrics: string): Promise<Result<IAnalysisResult, string>> {
@@ -177,7 +194,7 @@ export class AIService {
           tools: [{ googleSearch: {} }],
         };
 
-        const result = await this.model.generateContent(request);
+        const result = await this.generateWithFallback(SEARCH_MODELS, request);
         const textRes = this.extractText(result);
 
         if (textRes.isErr()) {
@@ -223,7 +240,7 @@ export class AIService {
           },
         };
 
-        const result = await this.model.generateContent(request);
+        const result = await this.generateWithFallback(ANALYSIS_MODELS, request);
         const textRes = this.extractText(result);
 
         if (textRes.isErr()) {
@@ -245,6 +262,47 @@ export class AIService {
     }
 
     return Err(lastError);
+  }
+
+  /**
+   * Walks the models in priority order, skipping any still cooling down.
+   * 429 puts the model on cooldown (per-minute or until the daily reset);
+   * 500/503 is a transient Google outage, so move on without a cooldown.
+   * Any other error is thrown as-is for the caller's existing handling.
+   */
+  private async generateWithFallback(
+    modelIds: readonly AIModelId[],
+    request: GenerateContentRequest,
+  ): Promise<GenerateContentResult> {
+    let lastTransientError: Error | null = null;
+
+    for (const modelId of modelIds) {
+      const model = this.models.get(modelId);
+      if (!model || !this.quotaTracker.isAvailable(modelId)) continue;
+
+      try {
+        return await model.generateContent(request);
+      } catch (error) {
+        const aiError = error as IGenerativeAIError;
+
+        if (aiError?.status === 429) {
+          const until = resolveQuotaCooldownUntil(aiError.errorDetails, Date.now());
+          this.quotaTracker.markExhausted(modelId, until);
+          this.logger.warn(`${modelId} hết hạn mức, tạm ngưng tới ${new Date(until).toISOString()}.`);
+          continue;
+        }
+
+        if (aiError?.status === 500 || aiError?.status === 503) {
+          this.logger.warn(`${modelId} đang quá tải (status: ${aiError.status}), chuyển sang model kế tiếp.`);
+          lastTransientError = error as Error;
+          continue;
+        }
+
+        throw error;
+      }
+    }
+
+    throw lastTransientError ?? new AIQuotaExhaustedError();
   }
 
   /**
@@ -357,6 +415,11 @@ export class AIService {
   }
 
   private mapAIError(error: unknown, scope: string): string {
+    if (error instanceof AIQuotaExhaustedError) {
+      this.logger.error(`Gemini thất bại khi ${scope}: tất cả model đều đã hết hạn mức miễn phí.`);
+      return "Hệ thống AI đã hết hạn mức sử dụng miễn phí. Vui lòng thử lại sau.";
+    }
+
     const aiError = error as IGenerativeAIError;
     const status = aiError?.status;
     const message = aiError?.message || String(error);
@@ -384,6 +447,9 @@ export class AIService {
 
   /* Lỗi cấu hình hoặc quyền truy cập: thử lại cũng vô ích */
   private isFatalError(error: unknown): boolean {
+    /* Every model is on cooldown; an immediate retry would hit the same wall */
+    if (error instanceof AIQuotaExhaustedError) return true;
+
     const status = (error as IGenerativeAIError)?.status;
     return status === 400 || status === 401 || status === 403;
   }

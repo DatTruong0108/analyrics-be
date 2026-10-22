@@ -51,17 +51,22 @@ async function bootstrap() {
     .setDescription('Tài liệu API cho hệ thống phân tích lời bài hát thông minh')
     .setVersion('2.0')
     /*
-     * Cookie auth, not bearer. `JwtStrategy` only ever reads the `access_token`
-     * cookie — it has no Authorization-header extractor — so the previous
-     * `.addBearerAuth()` rendered an Authorize button that could not possibly
-     * work, and no route ever referenced it. Naming the scheme here is also
-     * what makes `@ApiCookieAuth()` on the auth routes resolve.
+     * Cookie auth documents what the frontend actually uses; naming the scheme
+     * is what makes `@ApiCookieAuth()` on the auth routes resolve. Its Authorize
+     * box cannot work in "Try it out", though: the browser drops a `Cookie`
+     * header set by page JavaScript.
      */
     .addCookieAuth('access_token', {
       type: 'apiKey',
       in: 'cookie',
       name: 'access_token',
     })
+    /*
+     * The Authorize box that does work in Swagger UI: paste the access token
+     * here. `JwtStrategy` accepts it as a fallback after the cookie, and routes
+     * opt in with `@ApiBearerAuth()`.
+     */
+    .addBearerAuth()
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

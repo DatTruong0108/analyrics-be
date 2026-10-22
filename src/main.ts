@@ -9,6 +9,7 @@ import * as cookieParser from 'cookie-parser';
 /* Application Package */
 import { AppModule } from './app.module';
 import { VALIDATION_PIPE_OPTIONS } from './shared/constants/validation';
+import { resolveAllowedOrigins } from './shared/config/allowed-origins';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -17,24 +18,30 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT') || 3001;
   /*
-   * `getOrThrow`, not `get`: the CORS origin must be a string, and a `undefined`
-   * slipping into the allowlist rejects every credentialed preflight — which
-   * presents as "login is broken" rather than as a config error. The Joi schema
-   * already makes both keys required, so this only ever fires if the two drift
-   * apart; failing here at boot is far cheaper than debugging it in the browser.
+   * One list, two enforcers: CORS below decides what a browser may *read*, and
+   * OriginCheckMiddleware decides what this server will *act on*. They must
+   * agree, so both read it from the same place — see the note in that module on
+   * why drift here fails silently in the dangerous direction.
    */
-  const frontendUrl = configService.get<string>('NODE_ENV') === "development"
-    ? configService.getOrThrow<string>('FE_URL')
-    : configService.getOrThrow<string>('FE_URL_PROD');
+  const allowedOrigins = resolveAllowedOrigins(configService);
 
   app.setGlobalPrefix('api');
 
   app.use(cookieParser());
 
   app.enableCors({
-    origin: [frontendUrl],
+    origin: allowedOrigins,
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    /*
+     * `X-Token-Expired` is a custom response header, so it is invisible to
+     * cross-origin JS unless it is named here: the fetch spec exposes only
+     * the CORS-safelisted response headers by default. Without this the
+     * frontend cannot tell "access token expired, refresh it" apart from
+     * "genuinely a guest", and would silently treat every logged-in user as
+     * anonymous once their token ages out.
+     */
+    exposedHeaders: ['X-Token-Expired'],
   });
 
   app.useGlobalPipes(new ValidationPipe(VALIDATION_PIPE_OPTIONS));
@@ -43,6 +50,22 @@ async function bootstrap() {
     .setTitle('Analyrics API')
     .setDescription('Tài liệu API cho hệ thống phân tích lời bài hát thông minh')
     .setVersion('2.0')
+    /*
+     * Cookie auth documents what the frontend actually uses; naming the scheme
+     * is what makes `@ApiCookieAuth()` on the auth routes resolve. Its Authorize
+     * box cannot work in "Try it out", though: the browser drops a `Cookie`
+     * header set by page JavaScript.
+     */
+    .addCookieAuth('access_token', {
+      type: 'apiKey',
+      in: 'cookie',
+      name: 'access_token',
+    })
+    /*
+     * The Authorize box that does work in Swagger UI: paste the access token
+     * here. `JwtStrategy` accepts it as a fallback after the cookie, and routes
+     * opt in with `@ApiBearerAuth()`.
+     */
     .addBearerAuth()
     .build();
 

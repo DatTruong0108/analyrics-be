@@ -45,6 +45,14 @@ export const LOGIN_THROTTLE_TTL = minutes(1);
 export const REFRESH_THROTTLE_LIMIT = 30;
 export const REFRESH_THROTTLE_TTL = minutes(1);
 
+/**
+ * PATCH /auth/me. A rename is a cheap write, but it is still a write the
+ * client can fire on every keystroke if its own guard ever slips — this caps
+ * that at something no human editing their name would ever reach.
+ */
+export const PROFILE_UPDATE_THROTTLE_LIMIT = 10;
+export const PROFILE_UPDATE_THROTTLE_TTL = minutes(1);
+
 /** Matches the Vietnamese user-facing messages the rest of the API returns. */
 export const THROTTLE_ERROR_MESSAGE =
   'Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau.';

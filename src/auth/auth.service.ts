@@ -348,6 +348,14 @@ export class AuthService {
     return this.authRepository.findById(userId);
   }
 
+  /**
+   * Renames the user. `name` arrives already trimmed and length-checked by
+   * `UpdateProfileDto`; null means the user row no longer exists.
+   */
+  async updateName(userId: string, name: string): Promise<Result<IUser | null, string>> {
+    return this.authRepository.updateName(userId, name);
+  }
+
   async logout(presentedToken: string | undefined): Promise<Result<boolean, string>> {
     try {
       if (!presentedToken) return Ok(true);

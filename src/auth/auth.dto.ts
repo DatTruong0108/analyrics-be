@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { BaseResponse } from 'src/shared/constants/baseResponse';
 
 export class UserData {
@@ -42,6 +43,33 @@ export class RegisterDto extends LoginDto {
   @IsOptional()
   @IsString()
   phone?: string;
+}
+
+/** Longest display name accepted by PATCH /auth/me. */
+export const MAX_USER_NAME_LENGTH = 50;
+
+/**
+ * Body for PATCH /auth/me.
+ *
+ * Trimmed before validation, so `"   "` fails @IsNotEmpty instead of being
+ * stored as a blank name, and `" Đạt "` is saved as `"Đạt"`. A non-string is
+ * passed through untouched so @IsString can reject it.
+ */
+export class UpdateProfileDto {
+  @ApiProperty({
+    example: 'Trương Tấn Đạt',
+    description: 'Tên hiển thị mới',
+    maxLength: MAX_USER_NAME_LENGTH,
+  })
+  @Transform(({ value }: { value: string | number | null | undefined }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString({ message: 'Tên phải là chuỗi ký tự' })
+  @IsNotEmpty({ message: 'Tên không được để trống' })
+  @MaxLength(MAX_USER_NAME_LENGTH, {
+    message: `Tên không được vượt quá ${MAX_USER_NAME_LENGTH} ký tự`,
+  })
+  name!: string;
 }
 
 export class UserResponse extends BaseResponse {

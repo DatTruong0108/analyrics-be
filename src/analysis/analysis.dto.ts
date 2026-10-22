@@ -191,6 +191,35 @@ export class TrendingQueryDto {
   offset: number = DEFAULT_OFFSET;
 }
 
+/**
+ * Query params for GET /analysis/history.
+ *
+ * Same offset window as trending on purpose: `MAX_OFFSET` bounds how deep a
+ * client can page, which caps the profile list at roughly a thousand rows.
+ */
+export class HistoryQueryDto extends TrendingQueryDto { }
+
+export class HistoryItemDto extends SongMetadataDto {
+  @ApiProperty({ example: '2026-10-22T08:30:00.000Z', description: 'Lần gần nhất người dùng xem bản phân tích này' })
+  viewedAt!: Date;
+}
+
+export class HistoryData {
+  @ApiProperty({ type: [HistoryItemDto] })
+  items!: HistoryItemDto[];
+
+  @ApiProperty({ example: 42, description: 'Tổng số bài hát trong lịch sử' })
+  total!: number;
+
+  @ApiProperty({ example: true, description: 'Còn trang tiếp theo hay không' })
+  hasMore!: boolean;
+}
+
+export class HistoryResponse extends BaseResponse {
+  @ApiProperty({ type: HistoryData })
+  data!: HistoryData;
+}
+
 export class AnalysisResponse extends BaseResponse {
   @ApiProperty({
     type: 'object',

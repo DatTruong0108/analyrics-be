@@ -1,7 +1,7 @@
 // /* System Package */
 import { Controller, Get, Query, Res, Body, HttpStatus, Post, UseGuards } from "@nestjs/common";
 import { Response } from "express";
-import { ApiBearerAuth, ApiOperation, ApiTags, ApiTooManyRequestsResponse } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiCookieAuth, ApiOkResponse, ApiOperation, ApiTags, ApiTooManyRequestsResponse, ApiUnauthorizedResponse } from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
 import { Result, match } from "oxide.ts";
 
@@ -10,7 +10,7 @@ import { AnalysisService } from "./services/analysis.service";
 import { ISongMetadata } from "./interfaces/analysis.interface";
 import { IPaginatedResult } from "src/shared/constants/paginatedResult";
 import { AnalysisWithSong } from "./repositories/analysis.repository.impl";
-import { AnalyzeSongDto, SearchSongsQueryDto, TrendingQueryDto } from "./analysis.dto";
+import { AnalyzeSongDto, HistoryQueryDto, HistoryResponse, SearchSongsQueryDto, TrendingQueryDto } from "./analysis.dto";
 import { AtGuard } from "src/auth/guards/at.guard";
 import { GetCurrentUserId } from "src/shared/decorators/getCurrentUserId.decorator";
 import {
@@ -113,5 +113,57 @@ export class AnalysisController {
         });
       },
     });
+  }
+
+  /*
+   * AtGuard is the permissive guard, so the "signed in" check lives here: a
+   * guest has no history to read, and answering 200 with an empty list would
+   * look like a real account that has never analysed anything.
+   */
+  @UseGuards(AtGuard)
+  @Get('history')
+  @ApiCookieAuth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Lấy lịch sử bản phân tích của người dùng hiện tại (Phân trang)' })
+  @ApiOkResponse({ description: 'Lấy lịch sử thành công', type: HistoryResponse })
+  @ApiUnauthorizedResponse({ description: 'Chưa đăng nhập hoặc phiên đã hết hạn' })
+  async getHistory(
+    @GetCurrentUserId() userId: string | null,
+    @Query() query: HistoryQueryDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    try {
+      if (!userId) {
+        res.status(HttpStatus.UNAUTHORIZED).json({
+          statusCode: HttpStatus.UNAUTHORIZED,
+          message: 'Bạn cần đăng nhập để xem lịch sử phân tích.',
+        });
+        return;
+      }
+
+      const result = await this.analysisService.getUserHistory(userId, query.limit, query.offset);
+
+      if (result.isErr()) {
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          message: result.unwrapErr(),
+        });
+        return;
+      }
+
+      const response: HistoryResponse = {
+        statusCode: HttpStatus.OK,
+        message: 'Lấy lịch sử phân tích thành công',
+        data: result.unwrap(),
+      };
+
+      res.status(HttpStatus.OK).json(response);
+    } catch (error) {
+      console.error('Get History Error:', error);
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Hệ thống bị lỗi, vui lòng thử lại sau.',
+      });
+    }
   }
 }

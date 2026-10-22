@@ -33,3 +33,17 @@ export interface ITrendingSongs {
   items: ISongMetadata[],
   total: number
 }
+
+/**
+ * One row of a user's analysis history: the song plus when the user last
+ * opened its analysis. `viewedAt` is `UserHistory.updatedAt`, which every
+ * repeat view bumps, so it is "last viewed" rather than "first viewed".
+ */
+export interface IHistoryItem extends ISongMetadata {
+  viewedAt: Date;
+}
+
+export interface IUserHistory {
+  items: IHistoryItem[];
+  total: number;
+}

@@ -6,7 +6,7 @@ import { Prisma } from "@prisma/client";
 
 /* Application Package */
 import { IAnalysisRepository } from "./analysis.repository";
-import { IAnalysisResult, ISongMetadata, IAnalysisSection, IMetaphor, ITrendingSongs } from "../interfaces/analysis.interface";
+import { IAnalysisResult, ISongMetadata, IAnalysisSection, IMetaphor, ITrendingSongs, IHistoryItem, IUserHistory } from "../interfaces/analysis.interface";
 import { PrismaService } from "src/prisma/prisma.service";
 
 export type AnalysisWithSong = IAnalysisResult & { id: string; song: ISongMetadata };
@@ -180,7 +180,7 @@ export class AnalysisRepositoryImpl implements IAnalysisRepository {
     }
   }
 
-  async findUserHistory(userId: string, limit: number, offset: number): Promise<Result<ITrendingSongs, string>> {
+  async findUserHistory(userId: string, limit: number, offset: number): Promise<Result<IUserHistory, string>> {
     try {
       const [history, total] = await this.prismaService.$transaction([
         this.prismaService.userHistory.findMany({
@@ -199,14 +199,15 @@ export class AnalysisRepositoryImpl implements IAnalysisRepository {
         this.prismaService.userHistory.count({ where: { userId } }),
       ]);
 
-      const formattedItems: ISongMetadata[] = history.map(record => ({
+      const formattedItems: IHistoryItem[] = history.map(record => ({
         id: record.analysis.song.id,
         title: record.analysis.song.title,
         artist: record.analysis.song.artist,
         album: record.analysis.song.album,
         imageUrl: record.analysis.song.imageUrl,
         spotifyUrl: record.analysis.song.spotifyUrl,
-        previewUrl: record.analysis.song.previewUrl
+        previewUrl: record.analysis.song.previewUrl,
+        viewedAt: record.updatedAt,
       }));
 
       return Ok({

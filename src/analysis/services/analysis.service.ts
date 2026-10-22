@@ -8,7 +8,7 @@ import { SpotifyService } from "./spotify.service";
 import { SearchService } from "./search.service";
 import { LyricsService } from "./lyrics.service";
 import { AIService } from "./ai.service";
-import { ISongMetadata } from "../interfaces/analysis.interface";
+import { IHistoryItem, ISongMetadata } from "../interfaces/analysis.interface";
 import { IPaginatedResult } from "src/shared/constants/paginatedResult";
 import { AnalysisWithSong } from "../repositories/analysis.repository.impl";
 import { AnalyzeSongDto } from "../analysis.dto";
@@ -198,5 +198,22 @@ export class AnalysisService {
     const hasMore = offset + limit < total;
 
     return Ok({ items, hasMore });
+  }
+
+  /**
+   * One page of the caller's own history, most recently viewed first.
+   *
+   * `hasMore` is derived here rather than in the client so the "Tải thêm"
+   * button never has to guess from a short page — a page that happens to be
+   * exactly `limit` long would otherwise always offer one empty extra load.
+   */
+  async getUserHistory(userId: string, limit: number, offset: number): Promise<Result<{ items: IHistoryItem[]; total: number; hasMore: boolean }, string>> {
+    const result = await this.repository.findUserHistory(userId, limit, offset);
+
+    if (result.isErr()) return Err(result.unwrapErr());
+
+    const { items, total } = result.unwrap();
+
+    return Ok({ items, total, hasMore: offset + items.length < total });
   }
 }

@@ -1,7 +1,7 @@
 // /* System Package */
 import { Controller, Get, Query, Res, Body, HttpStatus, Post, UseGuards } from "@nestjs/common";
 import { Response } from "express";
-import { ApiOperation, ApiTags, ApiTooManyRequestsResponse } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiOperation, ApiTags, ApiTooManyRequestsResponse } from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
 import { Result, match } from "oxide.ts";
 
@@ -57,6 +57,7 @@ export class AnalysisController {
   })
   @UseGuards(AtGuard)
   @Post('analyze')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Phân tích chi tiết lời bài hát bằng AI' })
   @ApiTooManyRequestsResponse({ description: THROTTLE_ERROR_MESSAGE })
   async analyze(

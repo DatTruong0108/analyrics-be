@@ -29,6 +29,14 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
           return typeof token === 'string' && token.length > 0 ? token : null;
         },
+        /*
+         * Fallback for Swagger "Authorize" and Postman/curl. Swagger UI cannot
+         * send a cookie it was handed — `Cookie` is a forbidden header the
+         * browser silently drops — so a header is the only way a pasted token
+         * reaches the API. No CSRF exposure: browsers never attach this header
+         * on their own, unlike the cookie.
+         */
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
       ]),
       ignoreExpiration: false,
       // Pinned so a token cannot dictate how it gets verified.

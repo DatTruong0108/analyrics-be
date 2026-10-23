@@ -188,6 +188,32 @@ export class AnalysisService {
     }
   }
 
+  /**
+   * The cached analysis behind the public song page, or null when the song has
+   * never been analysed. Read-only on purpose: this path is reachable by
+   * crawlers and shared links, so it must never spend Gemini quota.
+   */
+  async getSongAnalysis(songId: string): Promise<Result<AnalysisWithSong | null, string>> {
+    return await this.repository.findAnalysisBySongId(songId);
+  }
+
+  /**
+   * Records that the caller opened a song's page, moving it to the top of
+   * their history. Ok(false) means the song has no analysis to record against.
+   */
+  async recordView(userId: string, songId: string): Promise<Result<boolean, string>> {
+    const result = await this.repository.findAnalysisIdBySongId(songId);
+
+    if (result.isErr()) return Err(result.unwrapErr());
+
+    const analysisId = result.unwrap();
+    if (!analysisId) return Ok(false);
+
+    await this.repository.recordUserHistory(userId, analysisId);
+
+    return Ok(true);
+  }
+
   async getTrending(limit: number = 10, offset: number = 0): Promise<Result<{ items: ISongMetadata[]; hasMore: boolean }, string>> {
     const result = await this.repository.findTrendings(limit, offset);
 

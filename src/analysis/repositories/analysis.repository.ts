@@ -7,6 +7,7 @@ import { AnalysisWithSong } from "./analysis.repository.impl";
 
 export abstract class IAnalysisRepository {
   abstract findAnalysisBySongId(songId: string): Promise<Result<AnalysisWithSong | null, string>>;
+  abstract findAnalysisIdBySongId(songId: string): Promise<Result<string | null, string>>;
   abstract saveAnalysis(userId: string | null, song: ISongMetadata, analysis: IAnalysisResult): Promise<Result<string, string>>;
   abstract findTrendings(limit: number, offset: number): Promise<Result<ITrendingSongs, string>>;
   abstract findUserHistory(userId: string, limit: number, offset: number): Promise<Result<IUserHistory, string>>;

@@ -116,3 +116,85 @@ describe('AnalysisService.removeFromHistory', () => {
     expect(result.unwrapErr()).toBe('Lỗi khi xoá lịch sử.');
   });
 });
+
+describe('AnalysisService.getSongAnalysis', () => {
+  const cached = {
+    id: 'analysis-1',
+    fullLyrics: 'la la',
+    syncedLyrics: null,
+    vibe: 'Chill',
+    overview: 'Overview',
+    analysis: [],
+    metaphors: [],
+    coreMessage: 'Message',
+    song: item('song-1'),
+  };
+
+  function buildReadService(findAnalysisBySongId: jest.Mock): AnalysisService {
+    const repository = { findAnalysisBySongId } as Partial<IAnalysisRepository> as IAnalysisRepository;
+
+    return new AnalysisService({} as SpotifyService, {} as SearchService, {} as LyricsService, {} as AIService, repository);
+  }
+
+  it('returns the cached analysis without generating one', async () => {
+    const findAnalysisBySongId = jest.fn().mockResolvedValue(Ok(cached));
+    const service = buildReadService(findAnalysisBySongId);
+
+    const result = await service.getSongAnalysis('song-1');
+
+    expect(findAnalysisBySongId).toHaveBeenCalledWith('song-1');
+    expect(result.unwrap()).toEqual(cached);
+  });
+
+  it('returns null for a song that has never been analysed', async () => {
+    const service = buildReadService(jest.fn().mockResolvedValue(Ok(null)));
+
+    const result = await service.getSongAnalysis('song-404');
+
+    expect(result.unwrap()).toBeNull();
+  });
+
+  it('passes a repository failure through unchanged', async () => {
+    const service = buildReadService(jest.fn().mockResolvedValue(Err('Lỗi truy vấn cơ sở dữ liệu.')));
+
+    const result = await service.getSongAnalysis('song-1');
+
+    expect(result.unwrapErr()).toBe('Lỗi truy vấn cơ sở dữ liệu.');
+  });
+});
+
+describe('AnalysisService.recordView', () => {
+  function buildViewService(findAnalysisIdBySongId: jest.Mock, recordUserHistory: jest.Mock): AnalysisService {
+    const repository = { findAnalysisIdBySongId, recordUserHistory } as Partial<IAnalysisRepository> as IAnalysisRepository;
+
+    return new AnalysisService({} as SpotifyService, {} as SearchService, {} as LyricsService, {} as AIService, repository);
+  }
+
+  it('records the view against the song\'s analysis', async () => {
+    const recordUserHistory = jest.fn().mockResolvedValue(undefined);
+    const service = buildViewService(jest.fn().mockResolvedValue(Ok('analysis-1')), recordUserHistory);
+
+    const result = await service.recordView('user-1', 'song-1');
+
+    expect(recordUserHistory).toHaveBeenCalledWith('user-1', 'analysis-1');
+    expect(result.unwrap()).toBe(true);
+  });
+
+  it('records nothing for a song that has never been analysed', async () => {
+    const recordUserHistory = jest.fn();
+    const service = buildViewService(jest.fn().mockResolvedValue(Ok(null)), recordUserHistory);
+
+    const result = await service.recordView('user-1', 'song-404');
+
+    expect(recordUserHistory).not.toHaveBeenCalled();
+    expect(result.unwrap()).toBe(false);
+  });
+
+  it('passes a lookup failure through unchanged', async () => {
+    const service = buildViewService(jest.fn().mockResolvedValue(Err('Lỗi truy vấn cơ sở dữ liệu.')), jest.fn());
+
+    const result = await service.recordView('user-1', 'song-1');
+
+    expect(result.unwrapErr()).toBe('Lỗi truy vấn cơ sở dữ liệu.');
+  });
+});

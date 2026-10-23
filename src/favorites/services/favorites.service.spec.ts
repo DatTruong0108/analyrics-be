@@ -120,3 +120,23 @@ describe('FavoritesService.isFavorited', () => {
     await expect(service.isFavorited('user-1', 'song-1')).resolves.toBe(false);
   });
 });
+
+describe('FavoritesService.getFavoriteState', () => {
+  it('answers what the repository found, scoped to the caller', async () => {
+    const isFavorited = jest.fn().mockResolvedValue(Ok(true));
+    const service = buildService({ isFavorited });
+
+    const result = await service.getFavoriteState('user-1', 'song-1');
+
+    expect(isFavorited).toHaveBeenCalledWith('user-1', 'song-1');
+    expect(result.unwrap()).toBe(true);
+  });
+
+  it('reports a lookup failure instead of guessing false', async () => {
+    const service = buildService({ isFavorited: jest.fn().mockResolvedValue(Err('Lỗi truy vấn bài hát yêu thích.')) });
+
+    const result = await service.getFavoriteState('user-1', 'song-1');
+
+    expect(result.unwrapErr()).toBe('Lỗi truy vấn bài hát yêu thích.');
+  });
+});

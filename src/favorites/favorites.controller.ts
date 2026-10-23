@@ -62,6 +62,48 @@ export class FavoritesController {
     }
   }
 
+  /*
+   * The heart's state for one song. The song page is rendered without the
+   * user's session, so the browser asks for this after the page loads.
+   */
+  @Get(':songId')
+  @ApiOperation({ summary: 'Kiểm tra bài hát có trong danh sách yêu thích hay không' })
+  @ApiOkResponse({ description: 'Trạng thái yêu thích hiện tại', type: FavoriteStateResponse })
+  @ApiUnauthorizedResponse({ description: 'Chưa đăng nhập hoặc phiên đã hết hạn' })
+  async getFavoriteState(
+    @GetCurrentUserId() userId: string | null,
+    @Param() params: FavoriteSongParamDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    try {
+      if (!userId) {
+        this.sendUnauthorized(res);
+        return;
+      }
+
+      const result = await this.favoritesService.getFavoriteState(userId, params.songId);
+
+      if (result.isErr()) {
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          message: result.unwrapErr(),
+        });
+        return;
+      }
+
+      const response: FavoriteStateResponse = {
+        statusCode: HttpStatus.OK,
+        message: 'Lấy trạng thái yêu thích thành công',
+        data: { songId: params.songId, isFavorited: result.unwrap() },
+      };
+
+      res.status(HttpStatus.OK).json(response);
+    } catch (error) {
+      console.error('Get Favorite State Error:', error);
+      this.sendSystemError(res);
+    }
+  }
+
   /* Idempotent: favouriting a song that is already favourited is still a 200. */
   @Post(':songId')
   @ApiOperation({ summary: 'Thêm bài hát vào danh sách yêu thích' })

@@ -220,6 +220,28 @@ export class HistoryResponse extends BaseResponse {
   data!: HistoryData;
 }
 
+/** Longest song id accepted in a path: a Spotify id is 22 chars, a UUID 36. */
+const MAX_SONG_ID_LENGTH = 64;
+
+/** Path params for DELETE /analysis/history/:id. */
+export class HistoryItemParamDto {
+  @ApiProperty({ example: '2up3OPMp9Tb4dAKM2erWXQ', description: 'ID bài hát cần xoá khỏi lịch sử' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(MAX_SONG_ID_LENGTH)
+  id!: string;
+}
+
+export class RemovedHistoryData {
+  @ApiProperty({ example: '2up3OPMp9Tb4dAKM2erWXQ', description: 'ID bài hát đã xoá khỏi lịch sử' })
+  id!: string;
+}
+
+export class RemoveHistoryResponse extends BaseResponse {
+  @ApiProperty({ type: RemovedHistoryData })
+  data!: RemovedHistoryData;
+}
+
 export class AnalysisResponse extends BaseResponse {
   @ApiProperty({
     type: 'object',

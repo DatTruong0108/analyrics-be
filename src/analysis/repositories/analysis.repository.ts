@@ -11,4 +11,5 @@ export abstract class IAnalysisRepository {
   abstract findTrendings(limit: number, offset: number): Promise<Result<ITrendingSongs, string>>;
   abstract findUserHistory(userId: string, limit: number, offset: number): Promise<Result<IUserHistory, string>>;
   abstract recordUserHistory(userId: string, analysisId: string): Promise<void>;
+  abstract deleteUserHistory(userId: string, songId: string): Promise<Result<number, string>>;
 }

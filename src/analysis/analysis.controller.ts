@@ -1,7 +1,7 @@
 // /* System Package */
-import { Controller, Get, Query, Res, Body, HttpStatus, Post, UseGuards } from "@nestjs/common";
+import { Controller, Get, Query, Res, Body, HttpStatus, Post, UseGuards, Delete, Param } from "@nestjs/common";
 import { Response } from "express";
-import { ApiBearerAuth, ApiCookieAuth, ApiOkResponse, ApiOperation, ApiTags, ApiTooManyRequestsResponse, ApiUnauthorizedResponse } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiCookieAuth, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiTooManyRequestsResponse, ApiUnauthorizedResponse } from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
 import { Result, match } from "oxide.ts";
 
@@ -10,7 +10,7 @@ import { AnalysisService } from "./services/analysis.service";
 import { ISongMetadata } from "./interfaces/analysis.interface";
 import { IPaginatedResult } from "src/shared/constants/paginatedResult";
 import { AnalysisWithSong } from "./repositories/analysis.repository.impl";
-import { AnalyzeSongDto, HistoryQueryDto, HistoryResponse, SearchSongsQueryDto, TrendingQueryDto } from "./analysis.dto";
+import { AnalyzeSongDto, HistoryItemParamDto, HistoryQueryDto, HistoryResponse, RemoveHistoryResponse, SearchSongsQueryDto, TrendingQueryDto } from "./analysis.dto";
 import { AtGuard } from "src/auth/guards/at.guard";
 import { GetCurrentUserId } from "src/shared/decorators/getCurrentUserId.decorator";
 import {
@@ -160,6 +160,66 @@ export class AnalysisController {
       res.status(HttpStatus.OK).json(response);
     } catch (error) {
       console.error('Get History Error:', error);
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Hệ thống bị lỗi, vui lòng thử lại sau.',
+      });
+    }
+  }
+
+  /*
+   * Only the caller's own UserHistory row is removed; the shared analysis
+   * stays cached for everyone else. Same guest handling as GET history.
+   */
+  @UseGuards(AtGuard)
+  @Delete('history/:id')
+  @ApiCookieAuth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Xoá một bài hát khỏi lịch sử phân tích của người dùng hiện tại' })
+  @ApiOkResponse({ description: 'Đã xoá khỏi lịch sử', type: RemoveHistoryResponse })
+  @ApiUnauthorizedResponse({ description: 'Chưa đăng nhập hoặc phiên đã hết hạn' })
+  @ApiNotFoundResponse({ description: 'Bài hát không có trong lịch sử của người dùng' })
+  async removeFromHistory(
+    @GetCurrentUserId() userId: string | null,
+    @Param() params: HistoryItemParamDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    try {
+      if (!userId) {
+        res.status(HttpStatus.UNAUTHORIZED).json({
+          statusCode: HttpStatus.UNAUTHORIZED,
+          message: 'Bạn cần đăng nhập để xoá lịch sử phân tích.',
+        });
+        return;
+      }
+
+      const result = await this.analysisService.removeFromHistory(userId, params.id);
+
+      if (result.isErr()) {
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          message: result.unwrapErr(),
+        });
+        return;
+      }
+
+      if (!result.unwrap()) {
+        res.status(HttpStatus.NOT_FOUND).json({
+          statusCode: HttpStatus.NOT_FOUND,
+          message: 'Bài hát không có trong lịch sử của bạn.',
+        });
+        return;
+      }
+
+      const response: RemoveHistoryResponse = {
+        statusCode: HttpStatus.OK,
+        message: 'Đã xoá bài hát khỏi lịch sử',
+        data: { id: params.id },
+      };
+
+      res.status(HttpStatus.OK).json(response);
+    } catch (error) {
+      console.error('Remove History Error:', error);
       res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
         message: 'Hệ thống bị lỗi, vui lòng thử lại sau.',

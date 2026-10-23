@@ -73,3 +73,46 @@ describe('AnalysisService.getUserHistory', () => {
     expect(result.unwrapErr()).toBe('Lỗi truy vấn lịch sử.');
   });
 });
+
+describe('AnalysisService.removeFromHistory', () => {
+  function buildRemoveService(deleteUserHistory: jest.Mock): AnalysisService {
+    const repository = { deleteUserHistory } as Partial<IAnalysisRepository> as IAnalysisRepository;
+
+    return new AnalysisService(
+      {} as SpotifyService,
+      {} as SearchService,
+      {} as LyricsService,
+      {} as AIService,
+      repository,
+    );
+  }
+
+  it('scopes the delete to the caller and reports the song as removed', async () => {
+    const deleteUserHistory = jest.fn().mockResolvedValue(Ok(1));
+    const service = buildRemoveService(deleteUserHistory);
+
+    const result = await service.removeFromHistory('user-1', 'song-1');
+
+    expect(deleteUserHistory).toHaveBeenCalledWith('user-1', 'song-1');
+    expect(result.unwrap()).toBe(true);
+  });
+
+  it('reports not removed when the song is not in the caller\'s history', async () => {
+    const deleteUserHistory = jest.fn().mockResolvedValue(Ok(0));
+    const service = buildRemoveService(deleteUserHistory);
+
+    const result = await service.removeFromHistory('user-1', 'someone-elses-song');
+
+    expect(result.unwrap()).toBe(false);
+  });
+
+  it('passes a repository failure through unchanged', async () => {
+    const deleteUserHistory = jest.fn().mockResolvedValue(Err('Lỗi khi xoá lịch sử.'));
+    const service = buildRemoveService(deleteUserHistory);
+
+    const result = await service.removeFromHistory('user-1', 'song-1');
+
+    expect(result.isErr()).toBe(true);
+    expect(result.unwrapErr()).toBe('Lỗi khi xoá lịch sử.');
+  });
+});

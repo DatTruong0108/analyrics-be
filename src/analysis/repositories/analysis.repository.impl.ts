@@ -218,4 +218,23 @@ export class AnalysisRepositoryImpl implements IAnalysisRepository {
       return Err('Lỗi truy vấn lịch sử.');
     }
   }
+
+  /**
+   * Resolves to the number of rows removed (0 or 1, given the userId/analysisId
+   * unique key). Filtering on userId is what keeps one user from deleting
+   * another user's history: the songId alone matches every user's row.
+   * Only the history row goes — the shared Analysis and Song stay cached.
+   */
+  async deleteUserHistory(userId: string, songId: string): Promise<Result<number, string>> {
+    try {
+      const { count } = await this.prismaService.userHistory.deleteMany({
+        where: { userId, analysis: { songId } },
+      });
+
+      return Ok(count);
+    } catch (error) {
+      console.error('Delete History Error:', error);
+      return Err('Lỗi khi xoá lịch sử.');
+    }
+  }
 }

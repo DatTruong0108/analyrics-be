@@ -216,4 +216,16 @@ export class AnalysisService {
 
     return Ok({ items, total, hasMore: offset + items.length < total });
   }
+
+  /**
+   * Removes one song from the caller's own history. Ok(false) means the song
+   * was not in it, which the controller reports as 404 rather than an error.
+   */
+  async removeFromHistory(userId: string, songId: string): Promise<Result<boolean, string>> {
+    const result = await this.repository.deleteUserHistory(userId, songId);
+
+    if (result.isErr()) return Err(result.unwrapErr());
+
+    return Ok(result.unwrap() > 0);
+  }
 }

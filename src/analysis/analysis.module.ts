@@ -1,6 +1,7 @@
 /* System Package */
 import { Module } from '@nestjs/common';
 import { PrismaModule } from 'src/prisma/prisma.module';
+import { FavoritesModule } from 'src/favorites/favorites.module';
 
 /* Application Package */
 import { AnalysisController } from './analysis.controller';
@@ -15,6 +16,7 @@ import { SearchService } from './services/search.service';
 @Module({
   imports: [
     PrismaModule, 
+    FavoritesModule,
   ],
   controllers: [
     AnalysisController

@@ -77,13 +77,17 @@ model UserHistory {
 }
 
 model Favorite {
-  id      String @id @default(uuid())
-  userId  String
-  songId  String
-  user    User   @relation(fields: [userId], references: [id])
-  song    Song   @relation(fields: [songId], references: [id])
+  id        String   @id @default(uuid())
+  userId    String
+  songId    String
+  // When the song was favourited; the favourites list sorts on it. Re-adding
+  // an existing favourite is a no-op, so this keeps the first time it was added.
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  song      Song     @relation(fields: [songId], references: [id])
 
   @@unique([userId, songId])
+  @@index([userId, createdAt])
 }
 
 model RefreshToken {

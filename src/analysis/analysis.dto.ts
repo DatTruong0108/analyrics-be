@@ -221,13 +221,30 @@ export class HistoryResponse extends BaseResponse {
   data!: HistoryData;
 }
 
-/** Path params for DELETE /analysis/history/:id. */
+/** Path params for POST and DELETE /analysis/history/:id. */
 export class HistoryItemParamDto {
   @ApiProperty({ example: '2up3OPMp9Tb4dAKM2erWXQ', description: 'ID bài hát cần xoá khỏi lịch sử' })
   @IsString()
   @IsNotEmpty()
   @MaxLength(MAX_SONG_ID_LENGTH)
   id!: string;
+}
+
+/** Path params for GET /analysis/songs/:id — the same song id shape. */
+export class SongParamDto extends HistoryItemParamDto { }
+
+export class SongAnalysisResponse extends BaseResponse {
+  @ApiProperty({
+    type: 'object',
+    properties: {
+      song: { type: SongMetadataDto },
+      analysis: { type: DetailedAnalysisDto },
+    }
+  })
+  data!: {
+    song: SongMetadataDto;
+    analysis: DetailedAnalysisDto;
+  };
 }
 
 export class RemovedHistoryData {

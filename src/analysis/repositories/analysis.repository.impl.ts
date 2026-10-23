@@ -47,6 +47,18 @@ export class AnalysisRepositoryImpl implements IAnalysisRepository {
     } catch { return Err('Lỗi truy vấn cơ sở dữ liệu.'); }
   }
 
+  /** Just the id: recording a view needs nothing else, and the lyrics columns are large. */
+  async findAnalysisIdBySongId(songId: string): Promise<Result<string | null, string>> {
+    try {
+      const record = await this.prismaService.analysis.findUnique({
+        where: { songId },
+        select: { id: true },
+      });
+
+      return Ok(record?.id ?? null);
+    } catch { return Err('Lỗi truy vấn cơ sở dữ liệu.'); }
+  }
+
   async saveAnalysis(userId: string | null, song: ISongMetadata, analysis: IAnalysisResult): Promise<Result<string, string>> {
     try {
       const analysisId = await this.prismaService.$transaction(async (tx) => {

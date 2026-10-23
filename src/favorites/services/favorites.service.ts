@@ -31,6 +31,15 @@ export class FavoritesService {
   }
 
   /**
+   * Whether the caller has favourited the song, for GET /favorites/:songId.
+   * Unlike `isFavorited`, a lookup failure is reported: this endpoint exists
+   * only to answer that question, so guessing `false` would be a wrong answer.
+   */
+  async getFavoriteState(userId: string, songId: string): Promise<Result<boolean, string>> {
+    return await this.repository.isFavorited(userId, songId);
+  }
+
+  /**
    * Whether the caller has favourited the song, for the analyze response.
    *
    * Never fails: the heart icon is secondary to the analysis itself, so a

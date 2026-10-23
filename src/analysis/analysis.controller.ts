@@ -2,7 +2,7 @@
 import { Controller, Get, Query, Res, Body, HttpStatus, Post, UseGuards, Delete, Param } from "@nestjs/common";
 import { Response } from "express";
 import { ApiBearerAuth, ApiCookieAuth, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiTooManyRequestsResponse, ApiUnauthorizedResponse } from "@nestjs/swagger";
-import { Throttle } from "@nestjs/throttler";
+import { SkipThrottle, Throttle } from "@nestjs/throttler";
 import { Result, match } from "oxide.ts";
 
 // /* Application Package */
@@ -11,7 +11,7 @@ import { FavoritesService } from "src/favorites/services/favorites.service";
 import { ISongMetadata } from "./interfaces/analysis.interface";
 import { IPaginatedResult } from "src/shared/constants/paginatedResult";
 import { AnalysisWithSong } from "./repositories/analysis.repository.impl";
-import { AnalyzeSongDto, HistoryItemParamDto, HistoryQueryDto, HistoryResponse, RemoveHistoryResponse, SearchSongsQueryDto, TrendingQueryDto } from "./analysis.dto";
+import { AnalyzeSongDto, HistoryItemParamDto, HistoryQueryDto, HistoryResponse, RemoveHistoryResponse, SearchSongsQueryDto, SongAnalysisResponse, SongParamDto, TrendingQueryDto } from "./analysis.dto";
 import { AtGuard } from "src/auth/guards/at.guard";
 import { GetCurrentUserId } from "src/shared/decorators/getCurrentUserId.decorator";
 import {
@@ -171,6 +171,120 @@ export class AnalysisController {
       res.status(HttpStatus.OK).json(response);
     } catch (error) {
       console.error('Get History Error:', error);
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Hệ thống bị lỗi, vui lòng thử lại sau.',
+      });
+    }
+  }
+
+  /*
+   * Public, read-only analysis for the /song/[id] page. Never generates: a
+   * miss is a 404, so a crawler or a shared link cannot spend Gemini quota.
+   *
+   * Throttling is skipped on purpose. The page is server-rendered, so these
+   * requests arrive from the frontend server's few IPs rather than from each
+   * visitor — the per-IP default would make every reader and crawler share one
+   * 60/min bucket. The read is a single unique-index lookup.
+   */
+  @SkipThrottle()
+  @Get('songs/:id')
+  @ApiOperation({ summary: 'Lấy bản phân tích đã lưu của một bài hát (không gọi AI)' })
+  @ApiOkResponse({ description: 'Lấy bản phân tích thành công', type: SongAnalysisResponse })
+  @ApiNotFoundResponse({ description: 'Bài hát chưa được phân tích' })
+  async getSongAnalysis(
+    @Param() params: SongParamDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    try {
+      const result = await this.analysisService.getSongAnalysis(params.id);
+
+      if (result.isErr()) {
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          message: result.unwrapErr(),
+        });
+        return;
+      }
+
+      const analysis = result.unwrap();
+
+      if (!analysis) {
+        res.status(HttpStatus.NOT_FOUND).json({
+          statusCode: HttpStatus.NOT_FOUND,
+          message: 'Bài hát này chưa được phân tích.',
+        });
+        return;
+      }
+
+      res.status(HttpStatus.OK).json({
+        statusCode: HttpStatus.OK,
+        message: 'Lấy bản phân tích thành công',
+        data: analysis,
+      });
+    } catch (error) {
+      console.error('Get Song Analysis Error:', error);
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Hệ thống bị lỗi, vui lòng thử lại sau.',
+      });
+    }
+  }
+
+  /*
+   * Records that the caller opened a song's page. The song page itself is
+   * server-rendered for everyone alike, so the browser reports the view
+   * afterwards — a server-side GET cannot carry the user's cookies, and a GET
+   * should not write anyway. Idempotent: a repeat view only bumps the song
+   * back to the top of the history.
+   */
+  @UseGuards(AtGuard)
+  @Post('history/:id')
+  @ApiCookieAuth()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Ghi nhận người dùng hiện tại đã xem bản phân tích của một bài hát' })
+  @ApiOkResponse({ description: 'Đã ghi vào lịch sử', type: RemoveHistoryResponse })
+  @ApiUnauthorizedResponse({ description: 'Chưa đăng nhập hoặc phiên đã hết hạn' })
+  @ApiNotFoundResponse({ description: 'Bài hát chưa được phân tích' })
+  async recordView(
+    @GetCurrentUserId() userId: string | null,
+    @Param() params: HistoryItemParamDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    try {
+      if (!userId) {
+        res.status(HttpStatus.UNAUTHORIZED).json({
+          statusCode: HttpStatus.UNAUTHORIZED,
+          message: 'Bạn cần đăng nhập để lưu lịch sử phân tích.',
+        });
+        return;
+      }
+
+      const result = await this.analysisService.recordView(userId, params.id);
+
+      if (result.isErr()) {
+        res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          message: result.unwrapErr(),
+        });
+        return;
+      }
+
+      if (!result.unwrap()) {
+        res.status(HttpStatus.NOT_FOUND).json({
+          statusCode: HttpStatus.NOT_FOUND,
+          message: 'Bài hát này chưa được phân tích.',
+        });
+        return;
+      }
+
+      res.status(HttpStatus.OK).json({
+        statusCode: HttpStatus.OK,
+        message: 'Đã ghi vào lịch sử',
+        data: { id: params.id },
+      });
+    } catch (error) {
+      console.error('Record View Error:', error);
       res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
         message: 'Hệ thống bị lỗi, vui lòng thử lại sau.',

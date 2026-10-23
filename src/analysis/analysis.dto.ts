@@ -13,6 +13,7 @@ import {
   MIN_PAGE,
   MIN_PAGE_LIMIT,
 } from 'src/shared/constants/pagination';
+import { MAX_SONG_ID_LENGTH } from 'src/shared/constants/song';
 
 /**
  * Builds the parser for a numeric query param.
@@ -220,9 +221,6 @@ export class HistoryResponse extends BaseResponse {
   data!: HistoryData;
 }
 
-/** Longest song id accepted in a path: a Spotify id is 22 chars, a UUID 36. */
-const MAX_SONG_ID_LENGTH = 64;
-
 /** Path params for DELETE /analysis/history/:id. */
 export class HistoryItemParamDto {
   @ApiProperty({ example: '2up3OPMp9Tb4dAKM2erWXQ', description: 'ID bài hát cần xoá khỏi lịch sử' })
@@ -248,12 +246,14 @@ export class AnalysisResponse extends BaseResponse {
     properties: {
       song: { type: SongMetadataDto },
       analysis: { type: DetailedAnalysisDto },
-      fromCache: { type: 'boolean' }
+      fromCache: { type: 'boolean' },
+      isFavorited: { type: 'boolean', description: 'Người dùng hiện tại đã yêu thích bài hát chưa (luôn false với khách)' }
     }
   })
   data!: {
     song: SongMetadataDto;
     analysis: DetailedAnalysisDto;
     fromCache: boolean;
+    isFavorited: boolean;
   };
 }

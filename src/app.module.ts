@@ -11,6 +11,7 @@ import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { AnalysisModule } from './analysis/analysis.module';
+import { FavoritesModule } from './favorites/favorites.module';
 import {
   DEFAULT_JWT_EXPIRES_IN,
   parseDurationToMs,
@@ -121,7 +122,8 @@ export const envValidationSchema = Joi.object({
     }),
     PrismaModule, 
     AuthModule,
-    AnalysisModule
+    AnalysisModule,
+    FavoritesModule,
   ],
   controllers: [AppController],
   providers: [

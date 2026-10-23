@@ -7,6 +7,7 @@ import { Result, match } from "oxide.ts";
 
 // /* Application Package */
 import { AnalysisService } from "./services/analysis.service";
+import { FavoritesService } from "src/favorites/services/favorites.service";
 import { ISongMetadata } from "./interfaces/analysis.interface";
 import { IPaginatedResult } from "src/shared/constants/paginatedResult";
 import { AnalysisWithSong } from "./repositories/analysis.repository.impl";
@@ -22,7 +23,10 @@ import {
 @ApiTags('Analysis')
 @Controller('analysis')
 export class AnalysisController {
-  constructor(private readonly analysisService: AnalysisService) { }
+  constructor(
+    private readonly analysisService: AnalysisService,
+    private readonly favoritesService: FavoritesService,
+  ) { }
 
   @Get('search')
   @ApiOperation({ summary: 'Tìm kiếm bài hát từ Spotify (Phân trang)' })
@@ -67,8 +71,15 @@ export class AnalysisController {
   ): Promise<void> {
     const result: Result<AnalysisWithSong & { fromCache: boolean }, string> = await this.analysisService.getOrGenerateAnalysis(userId, songMetadata);
 
+    // Read alongside the analysis so the heart renders in its real state on
+    // first paint. Never fails — a lookup error degrades to false.
+    const isFavorited = result.isOk()
+      ? await this.favoritesService.isFavorited(userId, songMetadata.id)
+      : false;
+
     return match(result, {
-      Ok: (data: AnalysisWithSong & { fromCache: boolean }) => {
+      Ok: (analysis: AnalysisWithSong & { fromCache: boolean }) => {
+        const data = { ...analysis, isFavorited };
         res.status(HttpStatus.OK).json({
           statusCode: HttpStatus.OK,
           message: data.fromCache
